@@ -193,22 +193,28 @@ python scripts/test_inference.py \
 
 1. Build and push container image:
 ```bash
-# Build image
-docker build -f Dockerfile.streamlit -t train-detection-streamlit:latest .
+# Build image with podman
+podman build -f Dockerfile.streamlit -t train-detection-streamlit:latest .
 
-# Tag for OpenShift registry
-docker tag train-detection-streamlit:latest \
-    image-registry.openshift-image-registry.svc:5000/train-detection/streamlit:latest
+# Tag for Quay.io registry (replace 'username' with your Quay.io username)
+podman tag train-detection-streamlit:latest \
+    quay.io/username/train-detection-streamlit:latest
 
-# Login to OpenShift registry
-oc whoami -t | docker login -u $(oc whoami) --password-stdin \
-    image-registry.openshift-image-registry.svc:5000
+# Login to Quay.io
+podman login quay.io
 
 # Push image
-docker push image-registry.openshift-image-registry.svc:5000/train-detection/streamlit:latest
+podman push quay.io/username/train-detection-streamlit:latest
 ```
 
-2. Deploy Kubernetes resources:
+2. Update deployment with your Quay.io username:
+```bash
+# Edit deployment.yaml and replace 'username' with your actual Quay.io username
+vi openshift/streamlit-app/deployment.yaml
+# Update line: image: quay.io/username/train-detection-streamlit:latest
+```
+
+3. Deploy Kubernetes resources:
 ```bash
 # Apply ConfigMap
 oc apply -f openshift/streamlit-app/configmap.yaml
@@ -226,12 +232,12 @@ oc apply -f openshift/streamlit-app/service.yaml
 oc apply -f openshift/streamlit-app/route.yaml
 ```
 
-3. Get application URL:
+4. Get application URL:
 ```bash
 oc get route train-detection-streamlit -o jsonpath='{.spec.host}'
 ```
 
-4. Access the application in your browser using the route URL.
+5. Access the application in your browser using the route URL.
 
 ## Project Structure
 

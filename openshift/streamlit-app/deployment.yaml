@@ -19,7 +19,8 @@ spec:
     spec:
       containers:
       - name: streamlit
-        image: image-registry.openshift-image-registry.svc:5000/train-detection/streamlit:latest
+        # Replace 'username' with your Quay.io username
+        image: quay.io/username/train-detection-streamlit:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8501
