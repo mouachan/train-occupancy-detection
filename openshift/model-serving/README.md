@@ -64,7 +64,27 @@ Template for S3/MinIO access credentials.
 oc new-project train-detection
 ```
 
-### Step 2: Create S3 Secret
+### Step 2: Upload Model to S3 with Triton Structure
+
+**⚠️ Important: Triton Model Structure**
+
+Triton expects models to be organized in a specific directory structure:
+
+```
+s3://bucket/
+└── model_name/          ← Model name (e.g., "yolo11n")
+    └── version/         ← Version number (e.g., "1")
+        └── model.onnx   ← Model file MUST be named "model.onnx"
+```
+
+**Upload using the notebook:**
+
+Run `notebooks/02_export_and_upload.ipynb` which automatically creates the correct structure:
+- Exports YOLOv11 to ONNX
+- Uploads to `s3://models/yolo11n/1/model.onnx`
+- Generates InferenceService YAML with correct `storageUri: s3://models/yolo11n`
+
+### Step 3: Create S3 Secret
 
 ```bash
 # Copy template
@@ -83,7 +103,7 @@ oc apply -f s3-secret.yaml
 - `AWS_S3_ENDPOINT`: S3 endpoint URL (e.g., `https://minio.example.com`)
 - `AWS_DEFAULT_REGION`: Region (default: `us-east-1`)
 
-### Step 3: Deploy ServingRuntime Template
+### Step 4: Deploy ServingRuntime Template
 
 This is the standard way to add serving runtimes in OpenShift AI. The runtime will appear in the dropdown list when deploying models.
 
@@ -110,7 +130,7 @@ triton-runtime   NVIDIA Triton Inference Server - Multi-framework model serving 
 
 **Note**: This template works for **any model** (not just YOLO): ONNX, TensorRT, TensorFlow, PyTorch, etc.
 
-### Step 4: Update InferenceService
+### Step 5: Update InferenceService
 
 Edit `inference-service.yaml` to point to your S3 model location:
 
@@ -128,7 +148,7 @@ Or use the auto-generated file from the notebook:
 oc apply -f inference-service-generated.yaml
 ```
 
-### Step 5: Deploy InferenceService
+### Step 6: Deploy InferenceService
 
 ```bash
 oc apply -f inference-service.yaml
@@ -152,7 +172,7 @@ NAME                       URL                                                 R
 yolo11-person-detection    http://yolo11-person-detection.train-detection...  True    100                 2m
 ```
 
-### Step 6: Test the Endpoint
+### Step 7: Test the Endpoint
 
 **Get the endpoint URL:**
 ```bash

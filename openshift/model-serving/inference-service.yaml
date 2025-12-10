@@ -17,8 +17,9 @@ spec:
         name: onnx
         version: "1"
       runtime: triton-runtime
-      # Update this path to your actual S3 bucket and model location
-      storageUri: s3://models/yolo11n.onnx
+      # Triton model directory (contains version subdirectories)
+      # Structure: s3://bucket/model_name/version/model.onnx
+      storageUri: s3://models/yolo11n
       resources:
         requests:
           memory: 2Gi
@@ -26,9 +27,6 @@ spec:
         limits:
           memory: 4Gi
           cpu: 2
-      env:
-        - name: STORAGE_URI
-          value: s3://models/yolo11n.onnx
     minReplicas: 1
     maxReplicas: 3
     scaleTarget: 80
