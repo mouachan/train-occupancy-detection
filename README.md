@@ -134,12 +134,17 @@ python scripts/export_to_onnx.py \
 export AWS_ACCESS_KEY_ID="your-access-key"
 export AWS_SECRET_ACCESS_KEY="your-secret-key"
 
+# For MinIO with self-signed HTTPS certificates, disable SSL verification
+export AWS_S3_VERIFY_SSL=0  # Set to 1 or omit for valid certificates
+
 # Upload model
 python scripts/upload_to_s3.py \
     --model models/yolo11n.onnx \
     --bucket train-detection-models \
     --endpoint https://s3.your-cluster.com
 ```
+
+**Note**: For SSL/HTTPS configuration details, see [S3_SSL_CONFIG.md](S3_SSL_CONFIG.md)
 
 ### Step 3: Deploy Model Serving on OpenShift AI
 
@@ -363,6 +368,7 @@ print(f"Inference time: {result.inference_time_ms:.2f} ms")
 - `AWS_ACCESS_KEY_ID`: S3 access key
 - `AWS_SECRET_ACCESS_KEY`: S3 secret key
 - `AWS_S3_ENDPOINT`: S3 endpoint URL
+- `AWS_S3_VERIFY_SSL`: Enable/disable SSL verification (set to `0` to disable for self-signed certs, default: `1`)
 
 ### Detection Parameters
 

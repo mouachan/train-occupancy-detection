@@ -10,7 +10,9 @@ import argparse
 import boto3
 from pathlib import Path
 from botocore.exceptions import ClientError
+from botocore.config import Config
 import os
+import urllib3
 
 
 def upload_to_s3(model_path: str, bucket_name: str, object_key: str = None,
@@ -36,10 +38,22 @@ def upload_to_s3(model_path: str, bucket_name: str, object_key: str = None,
     # Get credentials from environment variables
     aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
     aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    verify_ssl = os.getenv('AWS_S3_VERIFY_SSL', '1') != '0'
 
     if not aws_access_key_id or not aws_secret_access_key:
         print("Warning: AWS credentials not found in environment variables")
         print("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY")
+
+    # Disable SSL warnings if verification is disabled
+    if not verify_ssl:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        print("⚠️  SSL verification disabled (insecure)")
+
+    # Configure S3 client with SSL settings
+    s3_config = Config(
+        signature_version='s3v4',
+        retries={'max_attempts': 3, 'mode': 'standard'}
+    )
 
     # Create S3 client
     s3_client = boto3.client(
@@ -47,8 +61,15 @@ def upload_to_s3(model_path: str, bucket_name: str, object_key: str = None,
         endpoint_url=endpoint_url,
         region_name=region,
         aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key
+        aws_secret_access_key=aws_secret_access_key,
+        config=s3_config,
+        verify=verify_ssl  # Control SSL verification
     )
+
+    print(f"S3 Client configured:")
+    print(f"  Endpoint: {endpoint_url}")
+    print(f"  Region: {region}")
+    print(f"  SSL Verification: {'Enabled' if verify_ssl else 'Disabled'}")
 
     # Check if bucket exists, create if not
     try:

@@ -18,7 +18,7 @@ spec:
         version: "1"
       runtime: yolo11-triton-runtime
       # Update this path to your actual S3 bucket and model location
-      storageUri: s3://train-detection-models/yolo11n.onnx
+      storageUri: s3://models/yolo11n.onnx
       resources:
         requests:
           memory: 2Gi
@@ -28,7 +28,7 @@ spec:
           cpu: 2
       env:
         - name: STORAGE_URI
-          value: s3://train-detection-models/yolo11n.onnx
+          value: s3://models/yolo11n.onnx
     minReplicas: 1
     maxReplicas: 3
     scaleTarget: 80
