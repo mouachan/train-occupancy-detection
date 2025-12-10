@@ -67,9 +67,19 @@ def upload_to_s3(model_path: str, bucket_name: str, object_key: str = None,
     print(f"Uploading {model_path} to s3://{bucket_name}/{object_key}")
 
     try:
-        # Use upload_file instead of upload_fileobj to properly handle Content-Length
-        # This is especially important for MinIO compatibility
-        s3_client.upload_file(str(model_path), bucket_name, object_key)
+        # Get file size for progress display
+        file_size = model_path.stat().st_size
+        print(f"File size: {file_size / (1024**2):.2f} MB")
+
+        # Use put_object with file read to avoid multipart upload issues with MinIO
+        # This is more reliable for MinIO than upload_file which uses multipart
+        with open(model_path, 'rb') as f:
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=object_key,
+                Body=f,
+                ContentLength=file_size
+            )
 
         print(f"Upload successful!")
         print(f"S3 URI: s3://{bucket_name}/{object_key}")
