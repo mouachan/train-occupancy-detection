@@ -6,16 +6,38 @@ metadata:
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
-    description: "Triton Inference Server runtime for YOLOv11 ONNX models"
+    openshift.io/display-name: "Triton Runtime for YOLOv11"
+    prometheus.kserve.io/path: /metrics
+    prometheus.kserve.io/port: "8002"
 spec:
+  annotations:
+    prometheus.kserve.io/path: /metrics
+    prometheus.kserve.io/port: "8002"
   supportedModelFormats:
-    - name: onnx
+    - autoSelect: true
+      name: onnx
       version: "1"
-      autoSelect: true
+    - autoSelect: true
+      name: tensorrt
+      version: "8"
+    - autoSelect: true
+      name: tensorflow
+      version: "1"
+    - autoSelect: true
+      name: tensorflow
+      version: "2"
+    - name: pytorch
+      version: "1"
+    - autoSelect: true
+      name: triton
+      version: "2"
+    - autoSelect: true
+      name: python
+      version: "1"
   multiModel: false
   containers:
-    - name: triton
-      image: nvcr.io/nvidia/tritonserver:24.01-py3
+    - name: kserve-container
+      image: nvcr.io/nvidia/tritonserver:24.09-py3
       args:
         - tritonserver
         - --model-store=/mnt/models
@@ -31,6 +53,9 @@ spec:
         - containerPort: 9000
           protocol: TCP
           name: grpc
+        - containerPort: 8002
+          protocol: TCP
+          name: metrics
       resources:
         limits:
           cpu: "2"
@@ -44,12 +69,16 @@ spec:
           port: 8080
         initialDelaySeconds: 30
         periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
       readinessProbe:
         httpGet:
           path: /v2/health/ready
           port: 8080
         initialDelaySeconds: 30
         periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
   protocolVersions:
     - v2
     - grpc-v2
