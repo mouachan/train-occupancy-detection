@@ -21,7 +21,7 @@ objects:
       name: triton-runtime
       annotations:
         opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
-        opendatahub.io/runtime-version: "24.09"
+        opendatahub.io/runtime-version: "25.11"
         openshift.io/display-name: "NVIDIA Triton Inference Server"
         prometheus.kserve.io/path: /metrics
         prometheus.kserve.io/port: "8002"
@@ -55,7 +55,7 @@ objects:
       multiModel: false
       containers:
         - name: kserve-container
-          image: nvcr.io/nvidia/tritonserver:24.09-py3
+          image: nvcr.io/nvidia/tritonserver:25.11-py3
           args:
             - tritonserver
             - --model-store=/mnt/models

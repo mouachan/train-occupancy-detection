@@ -34,7 +34,7 @@ The ServingRuntime defines how models are served using NVIDIA Triton Inference S
 - ✅ **OpenShift AI Dashboard Integration**: `opendatahub.io/dashboard: "true"` label makes it visible in the UI
 - ✅ **Prometheus Metrics**: Configured on port 8002 with `/metrics` endpoint
 - ✅ **Multiple Model Formats**: ONNX, TensorRT, TensorFlow, PyTorch, Python
-- ✅ **Triton 24.09**: Latest stable version with improved ONNX support
+- ✅ **Triton 25.11**: Latest stable version (November 2025) with improved ONNX support
 - ✅ **Health Probes**: Liveness and readiness checks for reliability
 
 **Supported Formats:**
