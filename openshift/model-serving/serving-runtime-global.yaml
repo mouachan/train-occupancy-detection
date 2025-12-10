@@ -2,7 +2,6 @@ apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
   name: yolo11-triton-runtime
-  namespace: train-detection
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
