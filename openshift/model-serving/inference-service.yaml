@@ -17,9 +17,11 @@ spec:
         name: onnx
         version: "1"
       runtime: triton-runtime
-      # Triton model directory (contains version subdirectories)
-      # Structure: s3://bucket/model_name/version/model.onnx
-      storageUri: s3://models/yolo11n
+      # Triton model repository - MUST be bucket root
+      # KServe downloads CONTENTS of storageUri to /mnt/models/
+      # Structure in S3: s3://models/yolo11n/1/model.onnx
+      # Results in container: /mnt/models/yolo11n/1/model.onnx
+      storageUri: s3://models
       resources:
         requests:
           memory: 2Gi

@@ -82,7 +82,16 @@ s3://bucket/
 Run `notebooks/02_export_and_upload.ipynb` which automatically creates the correct structure:
 - Exports YOLOv11 to ONNX
 - Uploads to `s3://models/yolo11n/1/model.onnx`
-- Generates InferenceService YAML with correct `storageUri: s3://models/yolo11n`
+- Generates InferenceService YAML with correct `storageUri: s3://models`
+
+**⚠️ Critical: storageUri must point to bucket root**
+
+KServe storage-initializer downloads the **contents** of `storageUri` to `/mnt/models/`.
+
+- ✅ **Correct**: `storageUri: s3://models` → Downloads entire bucket → `/mnt/models/yolo11n/1/model.onnx`
+- ❌ **Wrong**: `storageUri: s3://models/yolo11n` → Downloads folder contents → `/mnt/models/1/model.onnx` (missing model name!)
+
+Triton needs the model name directory to identify models correctly.
 
 ### Step 3: Create S3 Secret
 
@@ -132,14 +141,19 @@ triton-runtime   NVIDIA Triton Inference Server - Multi-framework model serving 
 
 ### Step 5: Update InferenceService
 
-Edit `inference-service.yaml` to point to your S3 model location:
+Edit `inference-service.yaml` to point to your S3 bucket:
 
 ```yaml
 spec:
   predictor:
     model:
-      storageUri: s3://YOUR_BUCKET/yolo11n.onnx
+      runtime: triton-runtime
+      storageUri: s3://models  # Bucket root, NOT s3://models/yolo11n
 ```
+
+**In OpenShift AI UI:**
+- **Connection**: Select your S3 data connection
+- **Path**: Leave **empty** or `/` (to download entire bucket)
 
 Or use the auto-generated file from the notebook:
 
