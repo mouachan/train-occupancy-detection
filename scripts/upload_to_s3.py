@@ -67,8 +67,9 @@ def upload_to_s3(model_path: str, bucket_name: str, object_key: str = None,
     print(f"Uploading {model_path} to s3://{bucket_name}/{object_key}")
 
     try:
-        with open(model_path, 'rb') as f:
-            s3_client.upload_fileobj(f, bucket_name, object_key)
+        # Use upload_file instead of upload_fileobj to properly handle Content-Length
+        # This is especially important for MinIO compatibility
+        s3_client.upload_file(str(model_path), bucket_name, object_key)
 
         print(f"Upload successful!")
         print(f"S3 URI: s3://{bucket_name}/{object_key}")
