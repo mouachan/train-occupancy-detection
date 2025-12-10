@@ -16,7 +16,7 @@ spec:
       modelFormat:
         name: onnx
         version: "1"
-      runtime: yolo11-triton-runtime
+      runtime: triton-runtime
       # Update this path to your actual S3 bucket and model location
       storageUri: s3://models/yolo11n.onnx
       resources:

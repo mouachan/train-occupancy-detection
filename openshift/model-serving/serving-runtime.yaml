@@ -1,14 +1,14 @@
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
-  name: yolo11-triton-runtime
+  name: triton-runtime
   namespace: train-detection
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
-    openshift.io/display-name: "Triton Runtime for YOLOv11"
-    opendatahub.io/template-name: "triton-yolo11"
-    opendatahub.io/template-display-name: "Triton Runtime for YOLOv11"
+    openshift.io/display-name: "NVIDIA Triton Inference Server"
+    opendatahub.io/template-name: "triton-runtime"
+    opendatahub.io/template-display-name: "NVIDIA Triton Inference Server"
     opendatahub.io/apiProtocol: "REST"
     opendatahub.io/modelServingSupport: '["single"]'
     enable: "true"

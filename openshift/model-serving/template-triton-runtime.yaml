@@ -1,0 +1,104 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: triton-runtime
+  namespace: redhat-ods-applications
+  annotations:
+    description: "NVIDIA Triton Inference Server - Multi-framework model serving (ONNX, TensorRT, TensorFlow, PyTorch)"
+    tags: "triton,servingruntime,onnx,tensorrt,tensorflow,pytorch"
+    opendatahub.io/apiProtocol: "REST"
+    opendatahub.io/modelServingSupport: '["single"]'
+    opendatahub.io/model-type: '["predictive"]'
+    openshift.io/display-name: "NVIDIA Triton Inference Server"
+  labels:
+    app: odh-dashboard
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/ootb: "true"
+objects:
+  - apiVersion: serving.kserve.io/v1alpha1
+    kind: ServingRuntime
+    metadata:
+      name: triton-runtime
+      annotations:
+        opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+        opendatahub.io/runtime-version: "24.09"
+        openshift.io/display-name: "NVIDIA Triton Inference Server"
+        prometheus.kserve.io/path: /metrics
+        prometheus.kserve.io/port: "8002"
+      labels:
+        opendatahub.io/dashboard: "true"
+    spec:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8002"
+      supportedModelFormats:
+        - autoSelect: true
+          name: onnx
+          version: "1"
+        - autoSelect: true
+          name: tensorrt
+          version: "8"
+        - autoSelect: true
+          name: tensorflow
+          version: "1"
+        - autoSelect: true
+          name: tensorflow
+          version: "2"
+        - name: pytorch
+          version: "1"
+        - autoSelect: true
+          name: triton
+          version: "2"
+        - autoSelect: true
+          name: python
+          version: "1"
+      multiModel: false
+      containers:
+        - name: kserve-container
+          image: nvcr.io/nvidia/tritonserver:24.09-py3
+          args:
+            - tritonserver
+            - --model-store=/mnt/models
+            - --grpc-port=9000
+            - --http-port=8080
+            - --allow-grpc=true
+            - --allow-http=true
+            - --model-control-mode=explicit
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+            - containerPort: 9000
+              protocol: TCP
+              name: grpc
+            - containerPort: 8002
+              protocol: TCP
+              name: metrics
+          resources:
+            limits:
+              cpu: "2"
+              memory: 4Gi
+            requests:
+              cpu: "1"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /v2/health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v2/health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      protocolVersions:
+        - v2
+        - grpc-v2
+      grpcEndpoint: "port:9000"
+      grpcDataEndpoint: "port:9001"

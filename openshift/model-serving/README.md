@@ -8,7 +8,17 @@ This directory contains manifests for deploying YOLOv11 models on OpenShift AI u
 
 The ServingRuntime defines how models are served using NVIDIA Triton Inference Server.
 
-**Two Deployment Options:**
+**Three Deployment Options:**
+
+- **`template-triton-runtime.yaml`** - ⭐ **Recommended: OpenShift AI Template** (like OpenVINO)
+  - Generic NVIDIA Triton Inference Server template
+  - Supports **all model formats**: ONNX, TensorRT, TensorFlow, PyTorch
+  - Deploys as an OpenShift Template in `redhat-ods-applications` namespace
+  - Appears in the **Serving runtime dropdown** when creating model deployments
+  - Same format as built-in templates (OpenVINO, etc.)
+  - Requires cluster-admin or admin access to `redhat-ods-applications` namespace
+  - **This is the standard way for OpenShift AI**
+  - **Reusable for any model, not just YOLOv11**
 
 - **`serving-runtime.yaml`** - Project-scoped runtime (namespace: train-detection)
   - Deployed in a specific namespace
@@ -18,8 +28,7 @@ The ServingRuntime defines how models are served using NVIDIA Triton Inference S
 - **`serving-runtime-global.yaml`** - Global-scoped runtime (cluster-wide)
   - Deployed without namespace (cluster-wide)
   - Available to all projects in OpenShift AI
-  - Appears in the dropdown list when deploying models (like OpenVINO)
-  - Requires cluster-admin privileges to deploy
+  - Legacy approach, use Template instead
 
 **Key Features:**
 - ✅ **OpenShift AI Dashboard Integration**: `opendatahub.io/dashboard: "true"` label makes it visible in the UI
@@ -88,7 +97,34 @@ oc apply -f s3-secret.yaml
 
 ### Step 3: Deploy ServingRuntime
 
-**Option A: Project-scoped (Recommended for single project)**
+**⭐ Option A: Deploy as OpenShift AI Template (Recommended - like OpenVINO)**
+
+This is the standard way to add serving runtimes in OpenShift AI. The runtime will appear in the dropdown list when deploying models.
+
+```bash
+# Deploy the template (requires admin access to redhat-ods-applications namespace)
+oc apply -f template-triton-runtime.yaml
+
+# Verify template is created
+oc get template triton-runtime -n redhat-ods-applications
+
+# The template should show:
+NAME             DESCRIPTION                                                                          PARAMETERS   OBJECTS
+triton-runtime   NVIDIA Triton Inference Server - Multi-framework model serving (ONNX, TensorRT...)               1
+```
+
+**Verify in OpenShift AI Dashboard:**
+1. Open OpenShift AI Console
+2. Go to your data science project (`train-detection`)
+3. Click "Add model server" or "Deploy model"
+4. In the **Serving runtime** dropdown, you should now see:
+   - **"NVIDIA Triton Inference Server"** (your custom template)
+   - OpenVINO Model Server
+   - Other built-in runtimes
+
+**Note**: This template works for **any model** (not just YOLO): ONNX, TensorRT, TensorFlow, PyTorch, etc.
+
+**Option B: Project-scoped (For single project only)**
 
 ```bash
 oc apply -f serving-runtime.yaml
@@ -97,30 +133,24 @@ oc apply -f serving-runtime.yaml
 **Verify deployment:**
 ```bash
 # Check ServingRuntime
-oc get servingruntime yolo11-triton-runtime -n train-detection
+oc get servingruntime triton-runtime -n train-detection
 
 # Should show:
-NAME                    DISABLED   MODELTYPE   CONTAINERS        AGE
-yolo11-triton-runtime   false      onnx        kserve-container  10s
+NAME              DISABLED   MODELTYPE   CONTAINERS        AGE
+triton-runtime    false      onnx        kserve-container  10s
 ```
 
-**Option B: Global-scoped (Requires cluster-admin, appears in dropdown like OpenVINO)**
+**Option C: Global-scoped (Legacy approach)**
 
 ```bash
 # Deploy globally (requires cluster-admin privileges)
 oc apply -f serving-runtime-global.yaml
 
 # Verify global ServingRuntime
-oc get servingruntime yolo11-triton-runtime
+oc get servingruntime triton-runtime
 ```
 
-This will make the runtime appear in the **Serving runtime** dropdown when deploying models in OpenShift AI, just like the OpenVINO template.
-
-**Check in OpenShift AI Dashboard:**
-1. Open OpenShift AI Console
-2. Navigate to "Model Serving" → "Serving Runtimes"
-3. You should see "Triton Runtime for YOLOv11"
-4. When creating a model deployment, it should appear in the "Serving runtime" dropdown
+**Note**: Option A (Template) is the recommended approach as it follows OpenShift AI standards and provides the same user experience as built-in runtimes like OpenVINO.
 
 ### Step 4: Update InferenceService
 
@@ -259,14 +289,14 @@ spec:
 
 **Check labels:**
 ```bash
-oc get servingruntime yolo11-triton-runtime -o yaml | grep opendatahub
+oc get servingruntime triton-runtime -o yaml | grep opendatahub
 ```
 
 Should show: `opendatahub.io/dashboard: "true"`
 
 **Fix:**
 ```bash
-oc label servingruntime yolo11-triton-runtime opendatahub.io/dashboard=true
+oc label servingruntime triton-runtime opendatahub.io/dashboard=true
 ```
 
 ### InferenceService stuck in "Not Ready"
@@ -417,7 +447,7 @@ Remove all resources:
 oc delete inferenceservice yolo11-person-detection
 
 # Delete ServingRuntime
-oc delete servingruntime yolo11-triton-runtime
+oc delete servingruntime triton-runtime
 
 # Delete secret
 oc delete secret s3-credentials
