@@ -1,0 +1,12 @@
+# Include core dependencies
+-r requirements.txt
+
+# Streamlit
+streamlit>=1.32.0
+
+# Video Processing
+av>=11.0.0
+
+# Additional UI Components
+streamlit-autorefresh>=1.0.0
+plotly>=5.18.0

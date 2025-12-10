@@ -1,0 +1,35 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: yolo11-person-detection
+  namespace: train-detection
+  labels:
+    app: train-detection
+    model: yolo11
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    serving.knative.openshift.io/enablePassthrough: "true"
+    description: "YOLOv11 person detection model for train occupancy monitoring"
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: onnx
+        version: "1"
+      runtime: yolo11-triton-runtime
+      # Update this path to your actual S3 bucket and model location
+      storageUri: s3://train-detection-models/yolo11n.onnx
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 1
+        limits:
+          memory: 4Gi
+          cpu: 2
+      env:
+        - name: STORAGE_URI
+          value: s3://train-detection-models/yolo11n.onnx
+    minReplicas: 1
+    maxReplicas: 3
+    scaleTarget: 80
+    scaleMetric: concurrency

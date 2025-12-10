@@ -1,0 +1,25 @@
+# YOLOv11 and Computer Vision
+ultralytics>=8.3.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# ONNX Runtime
+onnxruntime>=1.16.0
+
+# API Client
+requests>=2.31.0
+pydantic>=2.0.0
+httpx>=0.25.0
+
+# Data Processing
+pandas>=2.0.0
+
+# Jupyter Notebooks
+jupyter>=1.0.0
+ipykernel>=6.25.0
+matplotlib>=3.7.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0

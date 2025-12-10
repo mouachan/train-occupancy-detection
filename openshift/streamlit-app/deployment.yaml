@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: train-detection-streamlit
+  namespace: train-detection
+  labels:
+    app: train-detection-streamlit
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: train-detection-streamlit
+  template:
+    metadata:
+      labels:
+        app: train-detection-streamlit
+        component: frontend
+    spec:
+      containers:
+      - name: streamlit
+        image: image-registry.openshift-image-registry.svc:5000/train-detection/streamlit:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8501
+          name: http
+          protocol: TCP
+        env:
+        - name: KSERVE_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: kserve_endpoint
+        - name: MODEL_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: model_name
+        - name: MAX_UPLOAD_SIZE_MB
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: max_upload_size_mb
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: video-uploads
+          mountPath: /app/uploads
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: video-uploads
+        persistentVolumeClaim:
+          claimName: streamlit-uploads-pvc
+      - name: models
+        emptyDir: {}

@@ -1,0 +1,21 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: train-detection-streamlit
+  namespace: train-detection
+  labels:
+    app: train-detection-streamlit
+    component: frontend
+  annotations:
+    description: "External access to train occupancy detection Streamlit app"
+spec:
+  to:
+    kind: Service
+    name: train-detection-streamlit
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: streamlit-uploads-pvc
+  namespace: train-detection
+  labels:
+    app: train-detection-streamlit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # Update storageClassName to match your cluster's available storage class
+  # Common options: gp3-csi, gp2-csi, ocs-storagecluster-ceph-rbd, etc.
+  storageClassName: gp3-csi

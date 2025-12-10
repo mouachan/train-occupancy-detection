@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlit-config
+  namespace: train-detection
+  labels:
+    app: train-detection-streamlit
+data:
+  # KServe endpoint URL (internal cluster URL)
+  kserve_endpoint: "http://yolo11-person-detection.train-detection.svc.cluster.local:8080"
+
+  # Model name
+  model_name: "yolo11-person-detection"
+
+  # Detection settings
+  confidence_threshold: "0.25"
+
+  # Upload settings
+  max_upload_size_mb: "500"
