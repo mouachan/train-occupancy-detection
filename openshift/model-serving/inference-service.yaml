@@ -1,7 +1,7 @@
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: yolo11-person-detection
+  name: train-person-detection
   namespace: train-detection
   labels:
     app: train-detection
