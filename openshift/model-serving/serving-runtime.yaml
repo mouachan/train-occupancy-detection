@@ -48,8 +48,8 @@ spec:
         - --model-store=/mnt/models
         - --grpc-port=9000
         - --http-port=8080
-        - --allow-grpc=true
-        - --allow-http=true
+        - --allow-grpc
+        - --allow-http
         - --model-control-mode=explicit
       ports:
         - containerPort: 8080
