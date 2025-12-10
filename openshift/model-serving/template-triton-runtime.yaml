@@ -62,7 +62,6 @@ objects:
             - --grpc-port=9000
             - --http-port=8080
             - --model-control-mode=poll
-            - --load-model=*
 
           ports:
             - containerPort: 8080

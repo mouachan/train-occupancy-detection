@@ -4,31 +4,19 @@ This directory contains manifests for deploying YOLOv11 models on OpenShift AI u
 
 ## Components
 
-### 1. ServingRuntime
+### 1. ServingRuntime Template
 
 The ServingRuntime defines how models are served using NVIDIA Triton Inference Server.
 
-**Three Deployment Options:**
-
-- **`template-triton-runtime.yaml`** - ⭐ **Recommended: OpenShift AI Template** (like OpenVINO)
-  - Generic NVIDIA Triton Inference Server template
-  - Supports **all model formats**: ONNX, TensorRT, TensorFlow, PyTorch
-  - Deploys as an OpenShift Template in `redhat-ods-applications` namespace
-  - Appears in the **Serving runtime dropdown** when creating model deployments
-  - Same format as built-in templates (OpenVINO, etc.)
-  - Requires cluster-admin or admin access to `redhat-ods-applications` namespace
-  - **This is the standard way for OpenShift AI**
-  - **Reusable for any model, not just YOLOv11**
-
-- **`serving-runtime.yaml`** - Project-scoped runtime (namespace: train-detection)
-  - Deployed in a specific namespace
-  - Only available to that namespace
-  - Use for project-specific configurations
-
-- **`serving-runtime-global.yaml`** - Global-scoped runtime (cluster-wide)
-  - Deployed without namespace (cluster-wide)
-  - Available to all projects in OpenShift AI
-  - Legacy approach, use Template instead
+**File: `template-triton-runtime.yaml`** - OpenShift AI Template (like OpenVINO)
+- Generic NVIDIA Triton Inference Server template
+- Supports **all model formats**: ONNX, TensorRT, TensorFlow, PyTorch
+- Deploys as an OpenShift Template in `redhat-ods-applications` namespace
+- Appears in the **Serving runtime dropdown** when creating model deployments
+- Same format as built-in templates (OpenVINO, etc.)
+- Requires cluster-admin or admin access to `redhat-ods-applications` namespace
+- **This is the standard way for OpenShift AI**
+- **Reusable for any model, not just YOLOv11**
 
 **Key Features:**
 - ✅ **OpenShift AI Dashboard Integration**: `opendatahub.io/dashboard: "true"` label makes it visible in the UI
@@ -95,9 +83,7 @@ oc apply -f s3-secret.yaml
 - `AWS_S3_ENDPOINT`: S3 endpoint URL (e.g., `https://minio.example.com`)
 - `AWS_DEFAULT_REGION`: Region (default: `us-east-1`)
 
-### Step 3: Deploy ServingRuntime
-
-**⭐ Option A: Deploy as OpenShift AI Template (Recommended - like OpenVINO)**
+### Step 3: Deploy ServingRuntime Template
 
 This is the standard way to add serving runtimes in OpenShift AI. The runtime will appear in the dropdown list when deploying models.
 
@@ -123,34 +109,6 @@ triton-runtime   NVIDIA Triton Inference Server - Multi-framework model serving 
    - Other built-in runtimes
 
 **Note**: This template works for **any model** (not just YOLO): ONNX, TensorRT, TensorFlow, PyTorch, etc.
-
-**Option B: Project-scoped (For single project only)**
-
-```bash
-oc apply -f serving-runtime.yaml
-```
-
-**Verify deployment:**
-```bash
-# Check ServingRuntime
-oc get servingruntime triton-runtime -n train-detection
-
-# Should show:
-NAME              DISABLED   MODELTYPE   CONTAINERS        AGE
-triton-runtime    false      onnx        kserve-container  10s
-```
-
-**Option C: Global-scoped (Legacy approach)**
-
-```bash
-# Deploy globally (requires cluster-admin privileges)
-oc apply -f serving-runtime-global.yaml
-
-# Verify global ServingRuntime
-oc get servingruntime triton-runtime
-```
-
-**Note**: Option A (Template) is the recommended approach as it follows OpenShift AI standards and provides the same user experience as built-in runtimes like OpenVINO.
 
 ### Step 4: Update InferenceService
 
