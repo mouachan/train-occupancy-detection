@@ -89,7 +89,8 @@ jupyter notebook
 
 3. Open and run notebooks:
    - `notebooks/01_local_detection.ipynb` - Test local YOLOv11 model
-   - `notebooks/02_api_detection.ipynb` - Test REST API inference
+   - `notebooks/02_export_and_upload.ipynb` - Export to ONNX and upload to S3
+   - `notebooks/03_api_detection.ipynb` - Test REST API inference
 
 ### Running Streamlit Application
 
@@ -249,7 +250,8 @@ train-occupancy-detection/
 │       └── config.py           # Configuration
 ├── notebooks/                   # Jupyter notebooks
 │   ├── 01_local_detection.ipynb
-│   └── 02_api_detection.ipynb
+│   ├── 02_export_and_upload.ipynb
+│   └── 03_api_detection.ipynb
 ├── streamlit_app/              # Streamlit web application
 │   └── app.py
 ├── openshift/                   # OpenShift deployment manifests
