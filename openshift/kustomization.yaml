@@ -4,7 +4,7 @@ kind: Kustomization
 # Global deployment for Train Occupancy Detection System
 # Deploys complete stack: MinIO, Model Serving (Triton), Streamlit App
 
-namespace: train-detection
+namespace: face-detection
 
 resources:
   # 1. MinIO Storage (deploy first)
@@ -17,10 +17,11 @@ resources:
   - minio/init-job.yaml
 
   # 2. Model Serving (Triton + KServe)
-  # NOTE: deploy-all.sh creates s3-secret.yaml after MinIO is deployed to get route URL
+  # NOTE: deploy-all.sh manages these resources separately:
+  #   - Triton template installed in redhat-ods-applications (shared)
+  #   - ServingRuntime instance created from template
+  #   - s3-credentials secret created with actual MinIO route URL
   - model-serving/service-account.yaml
-  # s3-secret.yaml is created separately by deploy-all.sh with actual MinIO route
-  - model-serving/template-triton-runtime.yaml
   - model-serving/inference-service.yaml
 
   # 3. Streamlit Application

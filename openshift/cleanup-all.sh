@@ -45,16 +45,16 @@ sed -i.bak "s/^namespace: .*/namespace: $NAMESPACE/" kustomization.yaml
 
 oc delete -k . --ignore-not-found=true
 
-# Delete template if it exists in this namespace
-echo "Checking for Triton template in namespace..."
-if oc get template triton-runtime -n $NAMESPACE &>/dev/null; then
-    echo "Deleting Triton template from namespace $NAMESPACE..."
-    oc delete template triton-runtime -n $NAMESPACE --ignore-not-found=true
-fi
+# Delete ServingRuntime instance (but NOT the template in redhat-ods-applications)
+echo "Deleting ServingRuntime instance..."
+oc delete servingruntime triton-runtime -n $NAMESPACE --ignore-not-found=true
 
 # Delete s3-credentials secret (created dynamically by deploy-all.sh)
 echo "Deleting s3-credentials secret..."
 oc delete secret s3-credentials -n $NAMESPACE --ignore-not-found=true
+
+# NOTE: We do NOT delete the template from redhat-ods-applications
+# as it's shared across all projects
 
 echo ""
 echo "Waiting for resources to be deleted..."

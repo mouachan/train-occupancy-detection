@@ -76,40 +76,38 @@ MINIO_PASS=$(grep "MINIO_ROOT_PASSWORD:" minio/secret.yaml | awk '{print $2}' | 
 echo "✓ Extracted credentials"
 echo ""
 
-# Check if Triton ServingRuntime Template already exists
+# Check and install Triton ServingRuntime Template
 echo "========================================"
-echo "Step 2: Checking ServingRuntime"
+echo "Step 2: Installing ServingRuntime Template"
 echo "========================================"
 echo ""
 
-# Check for existing Template (cluster-scoped)
+# Check if template exists in redhat-ods-applications (shared location)
 if oc get template triton-runtime -n redhat-ods-applications &>/dev/null; then
     echo "✓ Triton runtime template already exists in redhat-ods-applications"
-    echo "  Skipping template installation"
-
-    # Remove template from kustomization to avoid conflicts
-    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
-elif oc get template triton-runtime -n $NAMESPACE &>/dev/null; then
-    echo "✓ Triton runtime template already exists in namespace $NAMESPACE"
-    echo "  Skipping template installation"
-
-    # Remove template from kustomization to avoid conflicts
-    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
 else
-    echo "⚠️  Triton runtime template not found"
-    echo "  Will install template with deployment"
+    echo "⚠️  Triton runtime template not found in redhat-ods-applications"
+    echo "  Installing template to redhat-ods-applications (shared for all projects)..."
+
+    # Install template to redhat-ods-applications
+    oc apply -f model-serving/template-triton-runtime.yaml -n redhat-ods-applications
+
+    echo "✓ Template installed to redhat-ods-applications"
 fi
 
-# Check for existing ServingRuntime in namespace
-if oc get servingruntime triton-runtime -n $NAMESPACE &>/dev/null; then
-    echo "✓ Triton runtime already exists in namespace $NAMESPACE"
-    echo "  Skipping runtime installation"
+# Always remove template from kustomization (it's installed separately)
+sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
 
-    # Remove template from kustomization to avoid conflicts
-    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
+# Check if ServingRuntime instance exists in target namespace
+if oc get servingruntime triton-runtime -n $NAMESPACE &>/dev/null; then
+    echo "✓ Triton runtime instance already exists in namespace $NAMESPACE"
 else
-    echo "⚠️  Triton runtime not found in namespace"
-    echo "  Will create ServingRuntime"
+    echo "⚠️  Creating Triton runtime instance in namespace $NAMESPACE..."
+
+    # Process template to create ServingRuntime instance
+    oc process triton-runtime -n redhat-ods-applications | oc apply -f - -n $NAMESPACE
+
+    echo "✓ ServingRuntime instance created"
 fi
 
 echo ""
