@@ -76,7 +76,7 @@ if [ ! -f model-serving/s3-secret.yaml ]; then
     MINIO_USER=$(grep "MINIO_ROOT_USER:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
     MINIO_PASS=$(grep "MINIO_ROOT_PASSWORD:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
 
-    # Create S3 secret
+    # Create S3 secret with proper format for storage initializer
     cat > model-serving/s3-secret.yaml <<EOF
 apiVersion: v1
 kind: Secret
@@ -87,10 +87,23 @@ metadata:
     serving.kserve.io/s3-usehttps: "0"
     serving.kserve.io/s3-verifyssl: "0"
     serving.kserve.io/s3-region: us-east-1
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
 type: Opaque
 stringData:
   AWS_ACCESS_KEY_ID: "$MINIO_USER"
   AWS_SECRET_ACCESS_KEY: "$MINIO_PASS"
+
+  # Combined credentials format for storage initializer
+  s3-credentials: |
+    {
+      "type": "s3",
+      "bucket": "",
+      "endpoint_url": "http://minio:9000",
+      "default_bucket": "models",
+      "region": "us-east-1"
+    }
 EOF
 
     echo "✓ Created model-serving/s3-secret.yaml"
@@ -250,7 +263,7 @@ echo "Next Steps:"
 echo "  1. Upload YOLO model to MinIO:"
 echo "     - Open MinIO Console: https://$MINIO_CONSOLE"
 echo "     - Login with credentials from minio/secret.yaml"
-echo "     - Upload to: models/yolo11n/1/model.onnx"
+echo "     - Upload to: models/model/yolo11n/1/model.onnx"
 echo ""
 echo "  2. Or use notebook to upload:"
 echo "     - notebooks/02_export_and_upload.ipynb"

@@ -1,33 +1,38 @@
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: train-person-detection
+  name: train-detection-model
   labels:
-    app: train-detection
-    model: yolo11
+    opendatahub.io/dashboard: "true"
   annotations:
     serving.kserve.io/deploymentMode: RawDeployment
-    serving.knative.openshift.io/enablePassthrough: "true"
-    description: "YOLOv11 person detection model for train occupancy monitoring"
+    security.opendatahub.io/enable-auth: "false"
+    openshift.io/display-name: train-detection-model
+    openshift.io/description: "YOLOv11 person detection model for train occupancy monitoring"
+    serving.kserve.io/enable-prometheus-scraping: "false"
 spec:
   predictor:
+    serviceAccountName: s3-credentials-sa
     model:
       modelFormat:
         name: onnx
         version: "1"
       runtime: triton-runtime
-      # Triton model repository - MUST be bucket root
-      # KServe downloads CONTENTS of storageUri to /mnt/models/
-      # Structure in S3: s3://models/yolo11n/1/model.onnx
+      # Triton model repository path in S3
+      # Storage initializer will download s3://models/model/* to /mnt/models/
+      # Structure in S3: s3://models/model/yolo11n/1/model.onnx
       # Results in container: /mnt/models/yolo11n/1/model.onnx
-      storageUri: s3://models
+      storageUri: s3://models/model
+      storage:
+        key: s3-credentials
+        path: model
       resources:
         requests:
-          memory: 2Gi
-          cpu: 1
+          memory: 4Gi
+          cpu: "2"
         limits:
           memory: 4Gi
-          cpu: 2
+          cpu: "2"
     minReplicas: 1
     maxReplicas: 3
     scaleTarget: 80

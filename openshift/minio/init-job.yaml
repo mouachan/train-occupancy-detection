@@ -109,14 +109,16 @@ spec:
           }
           EOF
 
-          # Upload config.pbtxt
-          mc cp /tmp/config.pbtxt myminio/models/yolo11n/config.pbtxt
-          echo "✓ Created models/yolo11n/config.pbtxt"
+          # Upload config.pbtxt to correct path for KServe
+          # InferenceService storageUri: s3://models/model downloads to /mnt/models/
+          # Triton needs: /mnt/models/yolo11n/config.pbtxt
+          mc cp /tmp/config.pbtxt myminio/models/model/yolo11n/config.pbtxt
+          echo "✓ Created models/model/yolo11n/config.pbtxt"
 
           # Create version directory placeholder
           echo "Model structure ready for upload:"
-          echo "  models/yolo11n/config.pbtxt ✓"
-          echo "  models/yolo11n/1/model.onnx (upload manually or via notebook)"
+          echo "  models/model/yolo11n/config.pbtxt ✓"
+          echo "  models/model/yolo11n/1/model.onnx (upload manually or via notebook)"
           echo ""
 
           # List created structure
@@ -129,6 +131,6 @@ spec:
           echo "========================================"
           echo ""
           echo "Next steps:"
-          echo "  1. Upload YOLO model: mc cp yolo11n.onnx myminio/models/yolo11n/1/model.onnx"
+          echo "  1. Upload YOLO model: mc cp yolo11n.onnx myminio/models/model/yolo11n/1/model.onnx"
           echo "  2. Or use notebook 02_export_and_upload.ipynb"
           echo ""
