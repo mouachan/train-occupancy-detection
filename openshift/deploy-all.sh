@@ -64,51 +64,17 @@ if [ ! -f minio/secret.yaml ]; then
     echo ""
 fi
 
-# Create S3 secret from MinIO credentials if it doesn't exist
-if [ ! -f model-serving/s3-secret.yaml ]; then
-    echo "========================================"
-    echo "Creating S3 Secret"
-    echo "========================================"
-    echo ""
-    echo "Auto-generating model-serving/s3-secret.yaml from MinIO credentials..."
+# Extract MinIO credentials for later use
+echo "========================================"
+echo "Extracting MinIO Credentials"
+echo "========================================"
+echo ""
 
-    # Extract credentials from MinIO secret
-    MINIO_USER=$(grep "MINIO_ROOT_USER:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
-    MINIO_PASS=$(grep "MINIO_ROOT_PASSWORD:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
+MINIO_USER=$(grep "MINIO_ROOT_USER:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
+MINIO_PASS=$(grep "MINIO_ROOT_PASSWORD:" minio/secret.yaml | awk '{print $2}' | tr -d '"')
 
-    # Create S3 secret with proper format for storage initializer
-    cat > model-serving/s3-secret.yaml <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: storage-config
-  annotations:
-    serving.kserve.io/s3-endpoint: minio:9000
-    serving.kserve.io/s3-usehttps: "0"
-    serving.kserve.io/s3-verifyssl: "0"
-    serving.kserve.io/s3-region: us-east-1
-  labels:
-    opendatahub.io/dashboard: "true"
-    opendatahub.io/managed: "true"
-type: Opaque
-stringData:
-  AWS_ACCESS_KEY_ID: "$MINIO_USER"
-  AWS_SECRET_ACCESS_KEY: "$MINIO_PASS"
-
-  # Combined credentials format for storage initializer
-  s3-credentials: |
-    {
-      "type": "s3",
-      "bucket": "",
-      "endpoint_url": "http://minio:9000",
-      "default_bucket": "models",
-      "region": "us-east-1"
-    }
-EOF
-
-    echo "✓ Created model-serving/s3-secret.yaml"
-    echo ""
-fi
+echo "✓ Extracted credentials"
+echo ""
 
 # Check if Triton ServingRuntime Template already exists
 echo "========================================"
@@ -191,6 +157,42 @@ MINIO_CONSOLE=$(oc get route minio-console -o jsonpath='{.spec.host}' 2>/dev/nul
 echo "MinIO Endpoints:"
 echo "  API (S3):     https://$MINIO_API"
 echo "  Console (UI): https://$MINIO_CONSOLE"
+echo ""
+
+# Create S3 credentials secret with actual MinIO route URL
+echo "========================================"
+echo "Creating S3 Credentials Secret"
+echo "========================================"
+echo ""
+
+echo "Creating s3-credentials secret with MinIO route: https://$MINIO_API"
+
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-credentials
+  namespace: $NAMESPACE
+  annotations:
+    opendatahub.io/connection-type: s3
+    opendatahub.io/connection-type-protocol: s3
+    opendatahub.io/connection-type-ref: s3
+    openshift.io/description: ""
+    openshift.io/display-name: s3-credentials
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "$MINIO_USER"
+  AWS_SECRET_ACCESS_KEY: "$MINIO_PASS"
+  AWS_DEFAULT_REGION: "us-east-1"
+  AWS_S3_BUCKET: "models"
+  AWS_S3_ENDPOINT: "https://$MINIO_API"
+  AWS_S3_VERIFY_SSL: "0"
+EOF
+
+echo "✓ S3 credentials secret created with MinIO route"
 echo ""
 
 # Wait for InferenceService

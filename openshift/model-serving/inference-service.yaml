@@ -23,9 +23,6 @@ spec:
       # Structure in S3: s3://models/model/yolo11n/1/model.onnx
       # Results in container: /mnt/models/yolo11n/1/model.onnx
       storageUri: s3://models/model
-      storage:
-        key: s3-credentials
-        path: model
       resources:
         requests:
           memory: 4Gi

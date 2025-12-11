@@ -17,9 +17,9 @@ resources:
   - minio/init-job.yaml
 
   # 2. Model Serving (Triton + KServe)
-  # NOTE: deploy-all.sh auto-creates s3-secret.yaml from MinIO credentials
+  # NOTE: deploy-all.sh creates s3-secret.yaml after MinIO is deployed to get route URL
   - model-serving/service-account.yaml
-  - model-serving/s3-secret.yaml
+  # s3-secret.yaml is created separately by deploy-all.sh with actual MinIO route
   - model-serving/template-triton-runtime.yaml
   - model-serving/inference-service.yaml
 
