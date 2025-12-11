@@ -97,9 +97,41 @@ EOF
     echo ""
 fi
 
+# Check if Triton ServingRuntime Template already exists
+echo "========================================"
+echo "Step 2: Checking ServingRuntime"
+echo "========================================"
+echo ""
+
+# Check for existing Template (cluster-scoped)
+if oc get template triton-runtime -n openshift &>/dev/null; then
+    echo "✓ Triton runtime template already exists (cluster-wide)"
+    echo "  Skipping template installation"
+
+    # Remove template from kustomization to avoid conflicts
+    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
+else
+    echo "⚠️  Triton runtime template not found"
+    echo "  Will install template with deployment"
+fi
+
+# Check for existing ServingRuntime in namespace
+if oc get servingruntime triton-runtime -n $NAMESPACE &>/dev/null; then
+    echo "✓ Triton runtime already exists in namespace $NAMESPACE"
+    echo "  Skipping runtime installation"
+
+    # Remove template from kustomization to avoid conflicts
+    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
+else
+    echo "⚠️  Triton runtime not found in namespace"
+    echo "  Will create ServingRuntime"
+fi
+
+echo ""
+
 # Deploy everything with kustomize
 echo "========================================"
-echo "Step 2: Deploying All Resources"
+echo "Step 3: Deploying All Resources"
 echo "========================================"
 echo ""
 
@@ -116,7 +148,7 @@ echo ""
 
 # Wait for MinIO
 echo "========================================"
-echo "Step 3: Waiting for MinIO"
+echo "Step 4: Waiting for MinIO"
 echo "========================================"
 echo ""
 
@@ -150,7 +182,7 @@ echo ""
 
 # Wait for InferenceService
 echo "========================================"
-echo "Step 4: Waiting for Model Serving"
+echo "Step 5: Waiting for Model Serving"
 echo "========================================"
 echo ""
 
@@ -181,7 +213,7 @@ echo ""
 
 # Wait for Streamlit App
 echo "========================================"
-echo "Step 5: Waiting for Streamlit App"
+echo "Step 6: Waiting for Streamlit App"
 echo "========================================"
 echo ""
 

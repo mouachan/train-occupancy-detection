@@ -19,7 +19,7 @@ resources:
   # 2. Model Serving (Triton + KServe)
   # NOTE: deploy-all.sh auto-creates s3-secret.yaml from MinIO credentials
   - model-serving/s3-secret.yaml
-  - model-serving/serving-runtime.yaml
+  - model-serving/template-triton-runtime.yaml
   - model-serving/inference-service.yaml
 
   # 3. Streamlit Application
