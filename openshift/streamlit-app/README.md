@@ -5,21 +5,51 @@ This directory contains Kubernetes manifests for deploying the Train Occupancy D
 ## Prerequisites
 
 - OpenShift cluster access
-- `oc` CLI configured
+- `oc` CLI configured and logged in
 - Container image pushed to Quay.io registry
+
+## Quick Start
+
+**Deploy everything with one command (using kustomize):**
+
+```bash
+cd openshift/streamlit-app
+./deploy.sh
+```
+
+This will:
+- Create namespace `train-detection` if needed
+- Deploy all manifests
+- Automatically use the image `quay.io/mouachan/train-detection-streamlit:latest`
+- Wait for deployment to be ready
+- Display the application URL
+
+**To cleanup:**
+
+```bash
+./cleanup.sh
+```
 
 ## Configuration
 
-### 1. Update Container Image
+### Customize Image (kustomization.yaml)
 
-Before deploying, update the `deployment.yaml` file with your Quay.io username:
+The deployment uses **kustomize** to override the image without modifying YAML files.
+
+Edit `kustomization.yaml` to change the image:
 
 ```yaml
-# In deployment.yaml, line 23:
-image: quay.io/YOUR_USERNAME/train-detection-streamlit:latest
+images:
+  - name: quay.io/username/train-detection-streamlit
+    newName: quay.io/YOUR_USERNAME/train-detection-streamlit
+    newTag: latest  # or specific version like v1.0
 ```
 
-Replace `username` with your actual Quay.io username.
+Then deploy:
+
+```bash
+oc apply -k .
+```
 
 ### 2. Build and Push Image
 
@@ -86,7 +116,9 @@ oc create secret docker-registry quay-secret \
 oc secrets link default quay-secret --for=pull -n train-detection
 ```
 
-## Deployment Steps
+## Manual Deployment (Alternative)
+
+If you prefer to deploy manually instead of using the script:
 
 ### 1. Create Namespace
 
@@ -94,7 +126,14 @@ oc secrets link default quay-secret --for=pull -n train-detection
 oc new-project train-detection
 ```
 
-### 2. Apply Manifests
+### 2. Deploy with Kustomize
+
+```bash
+# Deploy all manifests at once (kustomize handles image override)
+oc apply -k .
+```
+
+Or deploy files individually:
 
 ```bash
 # Apply in order
@@ -103,19 +142,26 @@ oc apply -f pvc.yaml
 oc apply -f deployment.yaml
 oc apply -f service.yaml
 oc apply -f route.yaml
+
+# Then override image
+oc set image deployment/train-detection-streamlit \
+  streamlit=quay.io/mouachan/train-detection-streamlit:latest
 ```
 
 ### 3. Verify Deployment
 
 ```bash
 # Check pods
-oc get pods -n train-detection
+oc get pods -l app=train-detection-streamlit
 
 # Check deployment status
-oc get deployment train-detection-streamlit -n train-detection
+oc get deployment train-detection-streamlit
 
 # Get application URL
 oc get route train-detection-streamlit -o jsonpath='{.spec.host}'
+
+# Check logs
+oc logs -f deployment/train-detection-streamlit
 ```
 
 ## Manifests Description
