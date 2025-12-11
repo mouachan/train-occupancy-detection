@@ -6,7 +6,8 @@ set -e
 # Configuration
 IMAGE_NAME=${IMAGE_NAME:-"train-occupancy-detection"}
 IMAGE_TAG=${IMAGE_TAG:-"latest"}
-REGISTRY=${REGISTRY:-""}  # Set to your registry, e.g., "quay.io/myuser"
+REGISTRY=${REGISTRY:-""}  # e.g., "localhost:5000/username" or "registry.local:5000/username"
+PUSH=${PUSH:-"false"}  # Set to "true" to push after build
 
 # Full image name
 if [ -z "$REGISTRY" ]; then
@@ -58,22 +59,44 @@ echo "Image details:"
 $BUILDER images "$FULL_IMAGE"
 echo ""
 
-# Instructions
-echo "Next steps:"
-echo ""
-if [ -z "$REGISTRY" ]; then
-    echo "  1. Tag for registry:"
-    echo "     $BUILDER tag $FULL_IMAGE <registry>/<image>:<tag>"
+# Push if requested
+if [ "$PUSH" = "true" ]; then
+    echo "======================================"
+    echo "Pushing to Registry"
+    echo "======================================"
     echo ""
-    echo "  2. Push to registry:"
-    echo "     $BUILDER push <registry>/<image>:<tag>"
+
+    if [ -z "$REGISTRY" ]; then
+        echo "Error: REGISTRY must be set when PUSH=true"
+        exit 1
+    fi
+
+    echo "Pushing $FULL_IMAGE..."
+    $BUILDER push "$FULL_IMAGE"
+
+    echo ""
+    echo "======================================"
+    echo "Push Complete!"
+    echo "======================================"
+    echo ""
+    echo "Image available at: $FULL_IMAGE"
+    echo ""
 else
-    echo "  1. Push to registry:"
-    echo "     $BUILDER push $FULL_IMAGE"
+    # Instructions
+    echo "Next steps:"
+    echo ""
+    if [ -z "$REGISTRY" ]; then
+        echo "  1. Tag for registry:"
+        echo "     $BUILDER tag $FULL_IMAGE <registry>/<image>:<tag>"
+        echo ""
+        echo "  2. Push to registry:"
+        echo "     $BUILDER push <registry>/<image>:<tag>"
+    else
+        echo "  Push to registry:"
+        echo "     $BUILDER push $FULL_IMAGE"
+        echo ""
+        echo "  Or build and push in one step:"
+        echo "     PUSH=true REGISTRY=$REGISTRY IMAGE_NAME=$IMAGE_NAME IMAGE_TAG=$IMAGE_TAG ./build-image.sh"
+    fi
+    echo ""
 fi
-echo ""
-echo "  Or login to OpenShift and push to internal registry:"
-echo "     oc registry login"
-echo "     $BUILDER tag $FULL_IMAGE \$(oc registry info)/train-detection/$IMAGE_NAME:$IMAGE_TAG"
-echo "     $BUILDER push \$(oc registry info)/train-detection/$IMAGE_NAME:$IMAGE_TAG"
-echo ""
