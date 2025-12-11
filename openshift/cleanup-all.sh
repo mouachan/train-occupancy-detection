@@ -38,7 +38,23 @@ echo ""
 
 # Delete with kustomize (reverse order)
 cd "$(dirname "$0")"
+
+# Update namespace in kustomization.yaml to match
+echo "Setting namespace to: $NAMESPACE in kustomization.yaml"
+sed -i.bak "s/^namespace: .*/namespace: $NAMESPACE/" kustomization.yaml
+
 oc delete -k . --ignore-not-found=true
+
+# Delete template if it exists in this namespace
+echo "Checking for Triton template in namespace..."
+if oc get template triton-runtime -n $NAMESPACE &>/dev/null; then
+    echo "Deleting Triton template from namespace $NAMESPACE..."
+    oc delete template triton-runtime -n $NAMESPACE --ignore-not-found=true
+fi
+
+# Delete s3-credentials secret (created dynamically by deploy-all.sh)
+echo "Deleting s3-credentials secret..."
+oc delete secret s3-credentials -n $NAMESPACE --ignore-not-found=true
 
 echo ""
 echo "Waiting for resources to be deleted..."
