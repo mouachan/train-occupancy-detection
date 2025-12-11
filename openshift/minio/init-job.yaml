@@ -29,6 +29,27 @@ spec:
           done
           echo "MinIO is ready!"
           sleep 10
+      # Download model from GitHub
+      - name: download-model
+        image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "Downloading YOLO model from GitHub..."
+          GITHUB_RAW_URL="https://raw.githubusercontent.com/mouachan/train-occupancy-detection/main/models/yolo11n.onnx"
+
+          curl -f -L -o /models/model.onnx "$GITHUB_RAW_URL"
+
+          if [ -f /models/model.onnx ] && [ -s /models/model.onnx ]; then
+            echo "✓ Model downloaded successfully ($(du -h /models/model.onnx | cut -f1))"
+          else
+            echo "⚠️  Model download failed"
+            exit 1
+          fi
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
       containers:
       - name: init-minio
         image: quay.io/minio/mc:latest
@@ -45,6 +66,9 @@ spec:
             secretKeyRef:
               name: minio-credentials
               key: MINIO_ROOT_PASSWORD
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
         command:
         - sh
         - -c
@@ -99,28 +123,19 @@ spec:
           mc cp /tmp/config.pbtxt myminio/models/model/yolo11n/config.pbtxt
           echo "✓ Created models/model/yolo11n/config.pbtxt"
 
-          # Download and upload YOLO model from GitHub
+          # Upload YOLO model from downloaded file
           echo ""
-          echo "Downloading YOLO model from GitHub..."
+          echo "Uploading YOLO model to MinIO..."
 
-          GITHUB_RAW_URL="https://raw.githubusercontent.com/mouachan/train-occupancy-detection/main/models/yolo11n.onnx"
+          if [ -f /models/model.onnx ] && [ -s /models/model.onnx ]; then
+            echo "Model file found ($(du -h /models/model.onnx | cut -f1))"
 
-          # Download using curl (more commonly available than wget)
-          if curl -f -L -o /tmp/model.onnx "$GITHUB_RAW_URL" 2>/dev/null; then
-            if [ -f /tmp/model.onnx ] && [ -s /tmp/model.onnx ]; then
-              echo "✓ Model downloaded successfully ($(du -h /tmp/model.onnx | cut -f1))"
-
-              # Upload to MinIO
-              echo "Uploading model to MinIO..."
-              mc cp /tmp/model.onnx myminio/models/model/yolo11n/1/model.onnx
-              echo "✓ Model uploaded to models/model/yolo11n/1/model.onnx"
-            else
-              echo "⚠️  Model download failed (file empty or not created)"
-            fi
+            # Upload to MinIO
+            mc cp /models/model.onnx myminio/models/model/yolo11n/1/model.onnx
+            echo "✓ Model uploaded to models/model/yolo11n/1/model.onnx"
           else
-            echo "⚠️  Failed to download model from GitHub"
-            echo "  URL: $GITHUB_RAW_URL"
-            echo "  Please check that the file is pushed and the repo is public"
+            echo "⚠️  Model file not found or empty at /models/model.onnx"
+            echo "  Model was not uploaded to MinIO"
           fi
 
           echo ""
@@ -140,3 +155,6 @@ spec:
           echo "  2. If not, check that models/yolo11n.onnx is pushed to the repo"
           echo "  3. Or upload manually via MinIO Console"
           echo ""
+      volumes:
+      - name: model-storage
+        emptyDir: {}
