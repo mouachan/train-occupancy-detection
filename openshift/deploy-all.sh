@@ -83,8 +83,14 @@ echo "========================================"
 echo ""
 
 # Check for existing Template (cluster-scoped)
-if oc get template triton-runtime -n openshift &>/dev/null; then
-    echo "✓ Triton runtime template already exists (cluster-wide)"
+if oc get template triton-runtime -n redhat-ods-applications &>/dev/null; then
+    echo "✓ Triton runtime template already exists in redhat-ods-applications"
+    echo "  Skipping template installation"
+
+    # Remove template from kustomization to avoid conflicts
+    sed -i.bak '/template-triton-runtime.yaml/d' kustomization.yaml
+elif oc get template triton-runtime -n $NAMESPACE &>/dev/null; then
+    echo "✓ Triton runtime template already exists in namespace $NAMESPACE"
     echo "  Skipping template installation"
 
     # Remove template from kustomization to avoid conflicts
