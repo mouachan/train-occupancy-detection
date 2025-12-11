@@ -29,9 +29,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY --chown=1001:0 src/ ./src/
 COPY --chown=1001:0 streamlit_app/ ./streamlit_app/
 
-# Create necessary directories
+# Create necessary directories and fix permissions
 RUN mkdir -p /app/uploads && \
-    chmod -R g=u /app/uploads
+    chmod -R g=u /app && \
+    chmod -R 755 /app/streamlit_app /app/src
 
 # Expose Streamlit port
 EXPOSE 8501
