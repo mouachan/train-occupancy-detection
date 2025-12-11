@@ -20,8 +20,8 @@ USER 1001
 # Set working directory
 WORKDIR /app
 
-# Copy requirements
-COPY requirements-streamlit.txt .
+# Copy requirements with correct ownership
+COPY --chown=1001:0 requirements-streamlit.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
