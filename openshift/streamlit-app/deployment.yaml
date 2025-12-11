@@ -18,8 +18,7 @@ spec:
     spec:
       containers:
       - name: streamlit
-        # Replace 'username' with your Quay.io username
-        image: quay.io/username/train-detection-streamlit:latest
+        image: quay.io/mouachan/train-detection-streamlit:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8501
