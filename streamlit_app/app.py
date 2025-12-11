@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import requests
 import urllib3
 import time
+import os
 
 # Try to import local inference dependencies (optional for API-only mode)
 try:
@@ -27,6 +28,10 @@ from src.utils.video_processor import VideoProcessor
 
 # Disable SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Get configuration from environment variables (for OpenShift deployment)
+DEFAULT_KSERVE_ENDPOINT = os.getenv('KSERVE_ENDPOINT', 'http://train-person-detection:8080')
+DEFAULT_MODEL_NAME = os.getenv('MODEL_NAME', 'yolo11n')
 
 # Page configuration
 st.set_page_config(
@@ -282,13 +287,13 @@ with st.sidebar:
         st.subheader("API Configuration")
         api_endpoint = st.text_input(
             "Endpoint URL",
-            value="http://yolo11-person-detection:8080",
+            value=DEFAULT_KSERVE_ENDPOINT,
             help="KServe inference endpoint URL"
         )
         api_model_name = st.text_input(
             "Model Name",
-            value="yolo11-person-detection",
-            help="Name of the deployed model"
+            value=DEFAULT_MODEL_NAME,
+            help="Name of the deployed model (Triton model directory name)"
         )
 
     st.markdown("---")

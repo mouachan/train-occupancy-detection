@@ -7,10 +7,11 @@ metadata:
     app: train-detection-streamlit
 data:
   # KServe endpoint URL (internal cluster URL)
-  kserve_endpoint: "http://yolo11-person-detection.train-detection.svc.cluster.local:8080"
+  # Must match InferenceService name: train-person-detection
+  kserve_endpoint: "http://train-person-detection.train-detection.svc.cluster.local:8080"
 
-  # Model name
-  model_name: "yolo11-person-detection"
+  # Model name in Triton (directory name in S3: models/yolo11n/)
+  model_name: "yolo11n"
 
   # Detection settings
   confidence_threshold: "0.25"
