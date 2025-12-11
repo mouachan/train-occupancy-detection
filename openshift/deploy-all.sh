@@ -199,6 +199,23 @@ EOF
 echo "✓ S3 credentials secret created with MinIO route"
 echo ""
 
+# Update Streamlit ConfigMap with MinIO credentials
+echo "========================================"
+echo "Updating Streamlit ConfigMap"
+echo "========================================"
+echo ""
+
+echo "Updating ConfigMap with MinIO credentials..."
+
+oc patch configmap streamlit-config -n $NAMESPACE --type merge -p "{\"data\":{
+  \"minio_endpoint\":\"https://$MINIO_API\",
+  \"minio_access_key\":\"$MINIO_USER\",
+  \"minio_secret_key\":\"$MINIO_PASS\"
+}}"
+
+echo "✓ Streamlit ConfigMap updated with MinIO configuration"
+echo ""
+
 # Wait for InferenceService
 echo "========================================"
 echo "Step 5: Waiting for Model Serving"
