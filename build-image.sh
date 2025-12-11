@@ -8,6 +8,7 @@ IMAGE_NAME=${IMAGE_NAME:-"train-occupancy-detection"}
 IMAGE_TAG=${IMAGE_TAG:-"latest"}
 REGISTRY=${REGISTRY:-""}  # e.g., "localhost:5000/username" or "registry.local:5000/username"
 PUSH=${PUSH:-"false"}  # Set to "true" to push after build
+DOCKERFILE=${DOCKERFILE:-"Dockerfile.streamlit-api"}  # Use lightweight API-only by default
 
 # Full image name
 if [ -z "$REGISTRY" ]; then
@@ -20,8 +21,9 @@ echo "======================================"
 echo "Building Streamlit Image for x86_64"
 echo "======================================"
 echo ""
-echo "Image: $FULL_IMAGE"
-echo "Platform: linux/amd64"
+echo "Image:      $FULL_IMAGE"
+echo "Dockerfile: $DOCKERFILE"
+echo "Platform:   linux/amd64"
 echo ""
 
 # Check if using podman or docker
@@ -42,7 +44,7 @@ echo "Building image..."
 $BUILDER build \
     --platform linux/amd64 \
     -t "$FULL_IMAGE" \
-    -f Dockerfile.streamlit \
+    -f "$DOCKERFILE" \
     .
 
 echo ""

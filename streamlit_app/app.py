@@ -12,9 +12,17 @@ import requests
 import urllib3
 import time
 
-from src.detection.yolo_detector import YOLODetector
+# Try to import local inference dependencies (optional for API-only mode)
+try:
+    from src.detection.yolo_detector import YOLODetector
+    from src.utils.config import Config
+    LOCAL_MODE_AVAILABLE = True
+except ImportError:
+    LOCAL_MODE_AVAILABLE = False
+    YOLODetector = None
+    Config = None
+
 from src.detection.visualizer import draw_detections, create_detection_summary, draw_summary_on_frame
-from src.utils.config import Config
 from src.utils.video_processor import VideoProcessor
 
 # Disable SSL warnings for self-signed certificates
@@ -55,6 +63,11 @@ if 'detection_mode' not in st.session_state:
 
 def initialize_local_detector():
     """Initialize YOLOv11 local detector."""
+    if not LOCAL_MODE_AVAILABLE:
+        st.error("Local mode is not available. Missing dependencies: ultralytics, torch.")
+        st.info("This deployment is configured for API-only mode. Please use API Endpoint mode.")
+        return None
+
     try:
         model_path = Config.get_model_path('yolo11n.pt')
         if not model_path.exists():
@@ -242,11 +255,15 @@ with st.sidebar:
     st.header("⚙️ Configuration")
 
     # Detection mode selection
-    detection_mode = st.radio(
-        "Detection Mode",
-        ["Local Model", "API Endpoint"],
-        help="Choose between local embedded model or remote API"
-    )
+    if LOCAL_MODE_AVAILABLE:
+        detection_mode = st.radio(
+            "Detection Mode",
+            ["Local Model", "API Endpoint"],
+            help="Choose between local embedded model or remote API"
+        )
+    else:
+        st.info("ℹ️ Running in API-only mode")
+        detection_mode = "API Endpoint"
 
     st.session_state.detection_mode = detection_mode
 
@@ -275,14 +292,23 @@ with st.sidebar:
         )
 
     st.markdown("---")
-    st.info("""
-    **About this system:**
+    if LOCAL_MODE_AVAILABLE:
+        st.info("""
+        **About this system:**
 
-    Detect persons in train cars at final destination before parking in hangar.
+        Detect persons in train cars at final destination before parking in hangar.
 
-    - **Local Mode**: Fast, embedded inference
-    - **API Mode**: Scalable, cloud-based inference
-    """)
+        - **Local Mode**: Fast, embedded inference
+        - **API Mode**: Scalable, cloud-based inference
+        """)
+    else:
+        st.info("""
+        **About this system:**
+
+        Detect persons in train cars at final destination before parking in hangar.
+
+        Running in **API Mode**: Connects to KServe inference endpoint for scalable, cloud-based detection.
+        """)
 
 # Main content
 tab1, tab2, tab3 = st.tabs(["📹 Video Upload", "📊 Statistics", "ℹ️ About"])
@@ -303,7 +329,7 @@ with tab1:
 
         # Initialize detector based on mode
         if st.session_state.detection_mode == "Local Model":
-            if st.session_state.detector is None or not isinstance(st.session_state.detector, YOLODetector):
+            if st.session_state.detector is None or not (LOCAL_MODE_AVAILABLE and isinstance(st.session_state.detector, YOLODetector)):
                 with st.spinner("Initializing local detector..."):
                     st.session_state.detector = initialize_local_detector()
             detector = st.session_state.detector
@@ -348,7 +374,7 @@ with tab1:
                 skip_frames = 2  # Process every 3rd frame for performance
 
                 try:
-                    if isinstance(detector, YOLODetector):
+                    if LOCAL_MODE_AVAILABLE and isinstance(detector, YOLODetector):
                         # Local processing
                         for frame, detections in detector.process_video(video_path, skip_frames=skip_frames):
                             frame_count += 1

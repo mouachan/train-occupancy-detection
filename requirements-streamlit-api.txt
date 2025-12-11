@@ -1,0 +1,29 @@
+# Streamlit API-only mode (lightweight, no local inference)
+# Use this for deployments that only call KServe REST API
+
+# Web Framework
+streamlit>=1.32.0
+
+# HTTP Client for KServe API
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Image Processing (preprocessing before API call)
+opencv-python-headless>=4.8.0  # Headless = no GUI dependencies
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Video Processing
+av>=11.0.0
+
+# UI Components
+streamlit-autorefresh>=1.0.0
+plotly>=5.18.0
+
+# Note: This removes heavy dependencies:
+# - ultralytics (YOLOv11) - not needed for API mode
+# - torch/torchvision - not needed for API mode
+# - onnxruntime - not needed for API mode
+# - CUDA libraries - not needed for API mode
+# - jupyter/matplotlib - not needed in production
+# - pandas - not needed for this app
