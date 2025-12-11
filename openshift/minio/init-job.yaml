@@ -33,6 +33,8 @@ spec:
       - name: init-minio
         image: quay.io/minio/mc:latest
         env:
+        - name: MC_CONFIG_DIR
+          value: /tmp/.mc
         - name: MINIO_ROOT_USER
           valueFrom:
             secretKeyRef:
@@ -87,26 +89,8 @@ spec:
           # Create config.pbtxt in /tmp
           cat > /tmp/config.pbtxt << 'EOF'
           name: "yolo11n"
-          platform: "onnxruntime_onnx"
+          backend: "onnxruntime"
           max_batch_size: 0
-          input [
-            {
-              name: "images"
-              data_type: TYPE_FP32
-              dims: [ 1, 3, 640, 640 ]
-            }
-          ]
-          output [
-            {
-              name: "output0"
-              data_type: TYPE_FP32
-              dims: [ 1, 84, 8400 ]
-            }
-          ]
-          dynamic_batching {
-            preferred_batch_size: [ 1 ]
-            max_queue_delay_microseconds: 100
-          }
           EOF
 
           # Upload config.pbtxt to correct path for KServe
@@ -115,15 +99,36 @@ spec:
           mc cp /tmp/config.pbtxt myminio/models/model/yolo11n/config.pbtxt
           echo "✓ Created models/model/yolo11n/config.pbtxt"
 
-          # Create version directory placeholder
-          echo "Model structure ready for upload:"
-          echo "  models/model/yolo11n/config.pbtxt ✓"
-          echo "  models/model/yolo11n/1/model.onnx (upload manually or via notebook)"
+          # Download and upload YOLO model from GitHub
+          echo ""
+          echo "Downloading YOLO model from GitHub..."
+
+          GITHUB_RAW_URL="https://raw.githubusercontent.com/mouachan/train-occupancy-detection/main/models/yolo11n.onnx"
+
+          if wget -q --spider "$GITHUB_RAW_URL" 2>/dev/null; then
+            wget -O /tmp/model.onnx "$GITHUB_RAW_URL"
+
+            if [ -f /tmp/model.onnx ]; then
+              echo "✓ Model downloaded successfully ($(du -h /tmp/model.onnx | cut -f1))"
+
+              # Upload to MinIO
+              echo "Uploading model to MinIO..."
+              mc cp /tmp/model.onnx myminio/models/model/yolo11n/1/model.onnx
+              echo "✓ Model uploaded to models/model/yolo11n/1/model.onnx"
+            else
+              echo "⚠️  Model download failed"
+            fi
+          else
+            echo "⚠️  Model not found in GitHub repo"
+            echo "  Please upload manually or push models/yolo11n.onnx to GitHub"
+          fi
+
           echo ""
 
           # List created structure
           echo "Current MinIO structure:"
-          mc ls myminio/models/
+          mc ls myminio/models/model/yolo11n/
+          mc ls myminio/models/model/yolo11n/1/ 2>/dev/null || echo "  (version 1 directory will be created when model is uploaded)"
           echo ""
 
           echo "========================================"
@@ -131,6 +136,7 @@ spec:
           echo "========================================"
           echo ""
           echo "Next steps:"
-          echo "  1. Upload YOLO model: mc cp yolo11n.onnx myminio/models/model/yolo11n/1/model.onnx"
-          echo "  2. Or use notebook 02_export_and_upload.ipynb"
+          echo "  1. Model should be automatically loaded from GitHub"
+          echo "  2. If not, check that models/yolo11n.onnx is pushed to the repo"
+          echo "  3. Or upload manually via MinIO Console"
           echo ""

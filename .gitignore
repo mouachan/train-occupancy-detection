@@ -32,6 +32,7 @@ ENV/
 # Models
 models/*.pt
 models/*.onnx
+!models/yolo11n.onnx
 !models/README.md
 
 # Video files
