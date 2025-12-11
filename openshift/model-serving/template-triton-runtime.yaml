@@ -2,7 +2,6 @@ kind: Template
 apiVersion: template.openshift.io/v1
 metadata:
   name: triton-runtime
-  namespace: redhat-ods-applications
   annotations:
     description: "NVIDIA Triton Inference Server - Multi-framework model serving (ONNX, TensorRT, TensorFlow, PyTorch)"
     tags: "triton,servingruntime,onnx,tensorrt,tensorflow,pytorch"

@@ -2,7 +2,6 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: minio-api
-  namespace: train-detection
   labels:
     app: minio
 spec:

@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: train-detection-streamlit
-  namespace: train-detection
   labels:
     app: train-detection-streamlit
     component: frontend

@@ -2,7 +2,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: minio-init
-  namespace: train-detection
   labels:
     app: minio
     component: init
