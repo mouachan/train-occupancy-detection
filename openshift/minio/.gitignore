@@ -1,0 +1,2 @@
+# Exclude secret with real credentials
+secret.yaml
