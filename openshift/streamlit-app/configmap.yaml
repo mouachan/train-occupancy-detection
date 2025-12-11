@@ -6,9 +6,9 @@ metadata:
   labels:
     app: train-detection-streamlit
 data:
-  # KServe endpoint URL (internal cluster URL)
-  # Must match InferenceService name: train-detection-model
-  kserve_endpoint: "http://train-detection-model.train-detection.svc.cluster.local:8080"
+  # KServe endpoint URL (external route)
+  # Use the InferenceService route URL (same as notebooks)
+  kserve_endpoint: "https://train-detection-model-train-detection.apps.cluster-rk6mx.rk6mx.sandbox492.opentlc.com"
 
   # Model name in Triton (directory name in S3: models/yolo11n/)
   model_name: "yolo11n"
