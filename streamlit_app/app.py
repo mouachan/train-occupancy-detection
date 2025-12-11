@@ -370,11 +370,11 @@ with tab1:
                 frame_placeholder = st.empty()
 
                 col1, col2, col3 = st.columns(3)
-                metric_persons = col1.empty()
-                metric_frames = col2.empty()
-                metric_fps = col3.empty()
+                metric_max_persons = col1.empty()
+                metric_avg_persons = col2.empty()
+                metric_frames = col3.empty()
 
-                total_persons = 0
+                persons_per_frame = []
                 frame_count = 0
                 skip_frames = 2  # Process every 3rd frame for performance
 
@@ -383,7 +383,8 @@ with tab1:
                         # Local processing
                         for frame, detections in detector.process_video(video_path, skip_frames=skip_frames):
                             frame_count += 1
-                            total_persons += len(detections)
+                            num_persons = len(detections)
+                            persons_per_frame.append(num_persons)
 
                             # Update progress
                             progress = frame_count / (video_info['frame_count'] // (skip_frames + 1))
@@ -401,9 +402,9 @@ with tab1:
                                 frame_placeholder.image(frame_rgb, use_container_width=True)
 
                             # Update metrics
-                            metric_persons.metric("Total Persons Detected", total_persons)
+                            metric_max_persons.metric("Max Persons (Peak)", max(persons_per_frame))
+                            metric_avg_persons.metric("Avg Persons/Frame", f"{sum(persons_per_frame)/len(persons_per_frame):.1f}")
                             metric_frames.metric("Frames Processed", frame_count)
-                            metric_fps.metric("Avg Persons/Frame", f"{total_persons/frame_count:.2f}")
 
                     else:
                         # API processing
@@ -421,7 +422,8 @@ with tab1:
                                 st.error(f"Failed to process frame {frame_count}")
                                 break
 
-                            total_persons += len(detections)
+                            num_persons = len(detections)
+                            persons_per_frame.append(num_persons)
 
                             # Update progress
                             progress = frame_count / (video_info['frame_count'] // (skip_frames + 1))
@@ -434,13 +436,17 @@ with tab1:
                                 frame_placeholder.image(frame_rgb, use_container_width=True)
 
                             # Update metrics
-                            metric_persons.metric("Total Persons Detected", total_persons)
+                            metric_max_persons.metric("Max Persons (Peak)", max(persons_per_frame))
+                            metric_avg_persons.metric("Avg Persons/Frame", f"{sum(persons_per_frame)/len(persons_per_frame):.1f}")
                             metric_frames.metric("Frames Processed", frame_count)
-                            metric_fps.metric("Avg Persons/Frame", f"{total_persons/frame_count:.2f}")
 
                     progress_bar.progress(1.0)
                     status_text.text("✅ Processing complete!")
-                    st.success(f"Processed {frame_count} frames, detected {total_persons} persons total")
+
+                    if persons_per_frame:
+                        max_persons = max(persons_per_frame)
+                        avg_persons = sum(persons_per_frame) / len(persons_per_frame)
+                        st.success(f"Processed {frame_count} frames | Peak occupancy: {max_persons} persons | Average: {avg_persons:.1f} persons/frame")
 
                 except Exception as e:
                     st.error(f"Error during processing: {e}")
