@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Global deployment for Train Occupancy Detection System
+# Deploys complete stack: MinIO, Model Serving (Triton), Streamlit App
+
+namespace: train-detection
+
+resources:
+  # 1. MinIO Storage (deploy first)
+  - minio/secret.yaml
+  - minio/pvc.yaml
+  - minio/deployment.yaml
+  - minio/service.yaml
+  - minio/route-api.yaml
+  - minio/route-console.yaml
+  - minio/init-job.yaml
+
+  # 2. Model Serving (Triton + KServe)
+  # NOTE: deploy-all.sh auto-creates s3-secret.yaml from MinIO credentials
+  - model-serving/s3-secret.yaml
+  - model-serving/serving-runtime.yaml
+  - model-serving/inference-service.yaml
+
+  # 3. Streamlit Application
+  - streamlit-app/configmap.yaml
+  - streamlit-app/pvc.yaml
+  - streamlit-app/deployment.yaml
+  - streamlit-app/service.yaml
+  - streamlit-app/route.yaml
+
+# Namespace will be created if it doesn't exist
+
+# Prerequisites before deploying:
+# 1. Create minio/secret.yaml from minio/secret-template.yaml
+# 2. Create model-serving/s3-secret.yaml from model-serving/s3-secret-template.yaml
+# 3. Ensure credentials match between both secrets!
+
+# To deploy:
+#   ./deploy-all.sh
+# Or manually:
+#   oc apply -k openshift/

@@ -1,0 +1,135 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: train-detection
+  labels:
+    app: minio
+    component: init
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: minio
+        component: init
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      # Wait for MinIO to be ready
+      - name: wait-for-minio
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for MinIO to be ready..."
+          until nc -z minio 9000; do
+            echo "MinIO not ready yet, waiting..."
+            sleep 5
+          done
+          echo "MinIO is ready!"
+          sleep 10
+      containers:
+      - name: init-minio
+        image: quay.io/minio/mc:latest
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_ROOT_USER
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-credentials
+              key: MINIO_ROOT_PASSWORD
+        command:
+        - sh
+        - -c
+        - |
+          #!/bin/sh
+          set -e
+
+          echo "========================================"
+          echo "MinIO Initialization Job"
+          echo "========================================"
+          echo ""
+
+          # Configure mc alias
+          echo "Configuring MinIO client..."
+          mc alias set myminio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+
+          echo "✓ MinIO client configured"
+          echo ""
+
+          # Create buckets
+          echo "Creating buckets..."
+
+          if mc ls myminio/models >/dev/null 2>&1; then
+            echo "✓ Bucket 'models' already exists"
+          else
+            mc mb myminio/models
+            echo "✓ Created bucket 'models'"
+          fi
+
+          if mc ls myminio/train-detections >/dev/null 2>&1; then
+            echo "✓ Bucket 'train-detections' already exists"
+          else
+            mc mb myminio/train-detections
+            echo "✓ Created bucket 'train-detections'"
+          fi
+
+          echo ""
+
+          # Create model directory structure and config.pbtxt
+          echo "Creating model structure..."
+
+          # Create config.pbtxt in /tmp
+          cat > /tmp/config.pbtxt << 'EOF'
+          name: "yolo11n"
+          platform: "onnxruntime_onnx"
+          max_batch_size: 0
+          input [
+            {
+              name: "images"
+              data_type: TYPE_FP32
+              dims: [ 1, 3, 640, 640 ]
+            }
+          ]
+          output [
+            {
+              name: "output0"
+              data_type: TYPE_FP32
+              dims: [ 1, 84, 8400 ]
+            }
+          ]
+          dynamic_batching {
+            preferred_batch_size: [ 1 ]
+            max_queue_delay_microseconds: 100
+          }
+          EOF
+
+          # Upload config.pbtxt
+          mc cp /tmp/config.pbtxt myminio/models/yolo11n/config.pbtxt
+          echo "✓ Created models/yolo11n/config.pbtxt"
+
+          # Create version directory placeholder
+          echo "Model structure ready for upload:"
+          echo "  models/yolo11n/config.pbtxt ✓"
+          echo "  models/yolo11n/1/model.onnx (upload manually or via notebook)"
+          echo ""
+
+          # List created structure
+          echo "Current MinIO structure:"
+          mc ls myminio/models/
+          echo ""
+
+          echo "========================================"
+          echo "MinIO Initialization Complete!"
+          echo "========================================"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Upload YOLO model: mc cp yolo11n.onnx myminio/models/yolo11n/1/model.onnx"
+          echo "  2. Or use notebook 02_export_and_upload.ipynb"
+          echo ""
