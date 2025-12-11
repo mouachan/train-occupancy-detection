@@ -20,6 +20,9 @@ av>=11.0.0
 streamlit-autorefresh>=1.0.0
 plotly>=5.18.0
 
+# MinIO / S3 storage (optional)
+boto3>=1.28.0
+
 # Note: This removes heavy dependencies:
 # - ultralytics (YOLOv11) - not needed for API mode
 # - torch/torchvision - not needed for API mode

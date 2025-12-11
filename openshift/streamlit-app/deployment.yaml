@@ -42,6 +42,26 @@ spec:
             configMapKeyRef:
               name: streamlit-config
               key: max_upload_size_mb
+        - name: MINIO_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: minio_endpoint
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: minio_access_key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: minio_secret_key
+        - name: MINIO_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: streamlit-config
+              key: minio_bucket
         resources:
           requests:
             memory: "512Mi"

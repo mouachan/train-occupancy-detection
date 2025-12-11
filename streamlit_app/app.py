@@ -12,6 +12,10 @@ import requests
 import urllib3
 import time
 import os
+import json
+from datetime import datetime
+import plotly.graph_objects as go
+import plotly.express as px
 
 # Try to import local inference dependencies (optional for API-only mode)
 try:
@@ -32,6 +36,18 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Get configuration from environment variables (for OpenShift deployment)
 DEFAULT_KSERVE_ENDPOINT = os.getenv('KSERVE_ENDPOINT', 'http://train-person-detection:8080')
 DEFAULT_MODEL_NAME = os.getenv('MODEL_NAME', 'yolo11n')
+
+# MinIO configuration (optional)
+try:
+    import boto3
+    from botocore.client import Config as BotoConfig
+    MINIO_AVAILABLE = True
+    MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
+    MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
+    MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
+    MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'train-detections')
+except ImportError:
+    MINIO_AVAILABLE = False
 
 # Page configuration
 st.set_page_config(
@@ -64,6 +80,8 @@ if 'detector' not in st.session_state:
     st.session_state.detector = None
 if 'detection_mode' not in st.session_state:
     st.session_state.detection_mode = None
+if 'processing_results' not in st.session_state:
+    st.session_state.processing_results = None
 
 
 def initialize_local_detector():
@@ -251,6 +269,81 @@ def process_image_api(image: np.ndarray, api_config, conf_threshold=0.25):
         return None, [], {}
 
 
+def save_to_minio(video_name: str, persons_per_frame: list, annotated_frames: list, frame_indices: list):
+    """Save detection results and annotated frames to MinIO."""
+    if not MINIO_AVAILABLE or not MINIO_ENDPOINT:
+        return None
+
+    try:
+        # Initialize S3 client for MinIO
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=MINIO_ENDPOINT,
+            aws_access_key_id=MINIO_ACCESS_KEY,
+            aws_secret_access_key=MINIO_SECRET_KEY,
+            config=BotoConfig(signature_version='s3v4'),
+            verify=False
+        )
+
+        # Create bucket if not exists
+        try:
+            s3_client.head_bucket(Bucket=MINIO_BUCKET)
+        except:
+            s3_client.create_bucket(Bucket=MINIO_BUCKET)
+
+        # Generate timestamp for this session
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base_path = f"{video_name.replace('.', '_')}_{timestamp}"
+
+        # Save detection log as JSON
+        detection_log = {
+            'video_name': video_name,
+            'timestamp': timestamp,
+            'total_frames': len(persons_per_frame),
+            'max_persons': max(persons_per_frame) if persons_per_frame else 0,
+            'avg_persons': sum(persons_per_frame) / len(persons_per_frame) if persons_per_frame else 0,
+            'frames': [
+                {'frame_num': i, 'persons_detected': count}
+                for i, count in enumerate(persons_per_frame)
+            ]
+        }
+
+        log_key = f"{base_path}/detection_log.json"
+        s3_client.put_object(
+            Bucket=MINIO_BUCKET,
+            Key=log_key,
+            Body=json.dumps(detection_log, indent=2),
+            ContentType='application/json'
+        )
+
+        # Save annotated frames (sample every Nth frame to save space)
+        saved_frames = 0
+        for idx, (frame, frame_num) in enumerate(zip(annotated_frames, frame_indices)):
+            if idx % 10 == 0:  # Save every 10th annotated frame
+                # Encode frame as JPEG
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                frame_key = f"{base_path}/frames/frame_{frame_num:06d}.jpg"
+
+                s3_client.put_object(
+                    Bucket=MINIO_BUCKET,
+                    Key=frame_key,
+                    Body=buffer.tobytes(),
+                    ContentType='image/jpeg'
+                )
+                saved_frames += 1
+
+        return {
+            'bucket': MINIO_BUCKET,
+            'base_path': base_path,
+            'log_key': log_key,
+            'saved_frames': saved_frames
+        }
+
+    except Exception as e:
+        st.warning(f"Failed to save to MinIO: {e}")
+        return None
+
+
 # Main header
 st.markdown('<div class="main-header">🚂 Train Occupancy Detection System</div>', unsafe_allow_html=True)
 st.markdown("---")
@@ -375,6 +468,8 @@ with tab1:
                 metric_frames = col3.empty()
 
                 persons_per_frame = []
+                annotated_frames = []
+                frame_indices = []
                 frame_count = 0
                 skip_frames = 2  # Process every 3rd frame for performance
 
@@ -395,6 +490,10 @@ with tab1:
                             annotated = draw_detections(frame, detections)
                             summary = create_detection_summary(detections)
                             annotated = draw_summary_on_frame(annotated, summary)
+
+                            # Store annotated frame for saving
+                            annotated_frames.append(annotated.copy())
+                            frame_indices.append(frame_count)
 
                             # Display every 10th frame
                             if frame_count % 10 == 0:
@@ -425,6 +524,10 @@ with tab1:
                             num_persons = len(detections)
                             persons_per_frame.append(num_persons)
 
+                            # Store annotated frame for saving
+                            annotated_frames.append(annotated.copy())
+                            frame_indices.append(frame_num)
+
                             # Update progress
                             progress = frame_count / (video_info['frame_count'] // (skip_frames + 1))
                             progress_bar.progress(min(progress, 1.0))
@@ -448,6 +551,30 @@ with tab1:
                         avg_persons = sum(persons_per_frame) / len(persons_per_frame)
                         st.success(f"Processed {frame_count} frames | Peak occupancy: {max_persons} persons | Average: {avg_persons:.1f} persons/frame")
 
+                        # Save results to session state for statistics tab
+                        st.session_state.processing_results = {
+                            'video_name': uploaded_file.name,
+                            'timestamp': datetime.now().isoformat(),
+                            'total_frames': frame_count,
+                            'max_persons': max_persons,
+                            'avg_persons': avg_persons,
+                            'persons_per_frame': persons_per_frame
+                        }
+
+                        # Save to MinIO if available
+                        if MINIO_AVAILABLE and MINIO_ENDPOINT:
+                            with st.spinner("Saving results to MinIO..."):
+                                minio_result = save_to_minio(
+                                    video_name=uploaded_file.name,
+                                    persons_per_frame=persons_per_frame,
+                                    annotated_frames=annotated_frames,
+                                    frame_indices=frame_indices
+                                )
+
+                                if minio_result:
+                                    st.info(f"✅ Saved to MinIO: {minio_result['saved_frames']} frames + detection log")
+                                    st.session_state.processing_results['minio'] = minio_result
+
                 except Exception as e:
                     st.error(f"Error during processing: {e}")
                     import traceback
@@ -455,7 +582,114 @@ with tab1:
 
 with tab2:
     st.header("Detection Statistics")
-    st.info("Process a video to see statistics here.")
+
+    if st.session_state.processing_results is None:
+        st.info("📊 Process a video to see statistics here.")
+    else:
+        results = st.session_state.processing_results
+
+        # Summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Video", results['video_name'])
+        col2.metric("Total Frames", results['total_frames'])
+        col3.metric("Peak Occupancy", f"{results['max_persons']} persons")
+        col4.metric("Avg Occupancy", f"{results['avg_persons']:.1f} persons")
+
+        st.markdown("---")
+
+        # Occupancy over time chart
+        st.subheader("📈 Occupancy Over Time")
+
+        persons_data = results['persons_per_frame']
+
+        # Create line chart with plotly
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=list(range(len(persons_data))),
+            y=persons_data,
+            mode='lines',
+            name='Persons Detected',
+            line=dict(color='#1f77b4', width=2),
+            fill='tozeroy',
+            fillcolor='rgba(31, 119, 180, 0.2)'
+        ))
+
+        # Add peak line
+        fig.add_hline(
+            y=results['max_persons'],
+            line_dash="dash",
+            line_color="red",
+            annotation_text=f"Peak: {results['max_persons']} persons",
+            annotation_position="right"
+        )
+
+        # Add average line
+        fig.add_hline(
+            y=results['avg_persons'],
+            line_dash="dash",
+            line_color="green",
+            annotation_text=f"Avg: {results['avg_persons']:.1f} persons",
+            annotation_position="right"
+        )
+
+        fig.update_layout(
+            xaxis_title="Frame Number",
+            yaxis_title="Number of Persons",
+            height=400,
+            hovermode='x unified'
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("---")
+
+        # Distribution histogram
+        col_hist1, col_hist2 = st.columns(2)
+
+        with col_hist1:
+            st.subheader("📊 Occupancy Distribution")
+            fig_hist = px.histogram(
+                x=persons_data,
+                nbins=max(persons_data) + 1 if persons_data else 10,
+                labels={'x': 'Number of Persons', 'y': 'Frequency'},
+                color_discrete_sequence=['#1f77b4']
+            )
+            fig_hist.update_layout(showlegend=False, height=300)
+            st.plotly_chart(fig_hist, use_container_width=True)
+
+        with col_hist2:
+            st.subheader("📋 Summary Statistics")
+            st.write(f"**Min Occupancy:** {min(persons_data)} persons")
+            st.write(f"**Max Occupancy:** {max(persons_data)} persons")
+            st.write(f"**Average:** {results['avg_persons']:.2f} persons")
+            st.write(f"**Median:** {sorted(persons_data)[len(persons_data)//2]:.0f} persons")
+            st.write(f"**Total Frames:** {len(persons_data)}")
+
+            # Occupancy levels
+            zero_occ = persons_data.count(0)
+            low_occ = sum(1 for x in persons_data if 1 <= x < 3)
+            med_occ = sum(1 for x in persons_data if 3 <= x < 6)
+            high_occ = sum(1 for x in persons_data if x >= 6)
+
+            st.markdown("---")
+            st.write("**Occupancy Levels:**")
+            st.write(f"- Empty (0): {zero_occ} frames ({100*zero_occ/len(persons_data):.1f}%)")
+            st.write(f"- Low (1-2): {low_occ} frames ({100*low_occ/len(persons_data):.1f}%)")
+            st.write(f"- Medium (3-5): {med_occ} frames ({100*med_occ/len(persons_data):.1f}%)")
+            st.write(f"- High (6+): {high_occ} frames ({100*high_occ/len(persons_data):.1f}%)")
+
+        # MinIO info if saved
+        if 'minio' in results:
+            st.markdown("---")
+            st.subheader("💾 Saved to MinIO")
+            minio_info = results['minio']
+            st.info(f"""
+            - **Bucket:** {minio_info['bucket']}
+            - **Path:** {minio_info['base_path']}
+            - **Detection Log:** {minio_info['log_key']}
+            - **Saved Frames:** {minio_info['saved_frames']} annotated images
+            """)
 
 with tab3:
     st.header("About Train Occupancy Detection System")
