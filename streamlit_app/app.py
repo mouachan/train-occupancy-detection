@@ -8,11 +8,17 @@ import tempfile
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import requests
+import urllib3
+import time
+
 from src.detection.yolo_detector import YOLODetector
-from src.api.kserve_client import KServeClient
 from src.detection.visualizer import draw_detections, create_detection_summary, draw_summary_on_frame
 from src.utils.config import Config
 from src.utils.video_processor import VideoProcessor
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Page configuration
 st.set_page_config(
@@ -67,15 +73,104 @@ def initialize_local_detector():
         return None
 
 
+def preprocess_image_for_api(image: np.ndarray, target_size=640):
+    """Preprocess image for YOLO API inference."""
+    img_resized = cv2.resize(image, (target_size, target_size))
+    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
+    img_normalized = img_rgb.astype(np.float32) / 255.0
+    img_chw = np.transpose(img_normalized, (2, 0, 1))
+    # Add batch dimension [3,640,640] -> [1,3,640,640]
+    img_batch = np.expand_dims(img_chw, axis=0)
+    return img_batch, image.shape[:2]
+
+
+def postprocess_yolo_output(output_data, orig_shape, conf_threshold=0.25, input_size=640):
+    """Postprocess YOLO output to extract person detections."""
+    # Convert list to numpy array if needed
+    if isinstance(output_data, list):
+        output_data = np.array(output_data)
+
+    # Reshape from flat array [705600] to [1, 84, 8400]
+    if len(output_data.shape) == 1:
+        output_data = output_data.reshape(1, 84, 8400)
+
+    # Remove batch dimension [1, 84, 8400] -> [84, 8400]
+    if len(output_data.shape) == 3:
+        output_data = output_data[0]
+
+    # Transpose to [8400, 84]
+    if output_data.shape[0] == 84:
+        output_data = output_data.T
+
+    # Extract person detections (class 0)
+    boxes = output_data[:, :4]  # [x_center, y_center, width, height]
+    scores = output_data[:, 4:]  # [80 classes]
+    person_scores = scores[:, 0]  # Class 0 = person
+
+    # Filter by confidence
+    mask = person_scores >= conf_threshold
+    filtered_boxes = boxes[mask]
+    filtered_scores = person_scores[mask]
+
+    # Convert to Detection objects
+    detections = []
+    orig_h, orig_w = orig_shape
+    scale_x = orig_w / input_size
+    scale_y = orig_h / input_size
+
+    for box, score in zip(filtered_boxes, filtered_scores):
+        x_center, y_center, width, height = box
+
+        # Convert to corner coordinates and scale back to original size
+        x1 = int((x_center - width / 2) * scale_x)
+        y1 = int((y_center - height / 2) * scale_y)
+        x2 = int((x_center + width / 2) * scale_x)
+        y2 = int((y_center + height / 2) * scale_y)
+
+        # Clip to image boundaries
+        x1 = max(0, min(x1, orig_w))
+        y1 = max(0, min(y1, orig_h))
+        x2 = max(0, min(x2, orig_w))
+        y2 = max(0, min(y2, orig_h))
+
+        # Create detection object
+        class Detection:
+            def __init__(self, bbox, confidence, class_name='person'):
+                self.bbox = bbox
+                self.confidence = confidence
+                self.class_name = class_name
+
+        detection = Detection(
+            bbox=[x1, y1, x2, y2],
+            confidence=float(score),
+            class_name='person'
+        )
+        detections.append(detection)
+
+    return detections
+
+
 def initialize_api_client(endpoint_url: str, model_name: str):
-    """Initialize KServe API client."""
+    """Initialize API configuration and test connection."""
     try:
-        client = KServeClient(endpoint_url=endpoint_url, model_name=model_name)
-        if not client.health_check():
-            st.warning("API health check failed. Please verify the endpoint URL.")
-        return client
+        # Build inference URL
+        infer_url = f"{endpoint_url}/v2/models/{model_name}/infer"
+
+        # Test health check
+        health_url = f"{endpoint_url}/v2/health/live"
+        response = requests.get(health_url, verify=False, timeout=5)
+
+        if response.status_code != 200:
+            st.warning(f"API health check returned status {response.status_code}")
+
+        # Return config dict instead of client object
+        return {
+            'infer_url': infer_url,
+            'endpoint_url': endpoint_url,
+            'model_name': model_name
+        }
     except Exception as e:
-        st.error(f"Error initializing API client: {e}")
+        st.error(f"Error connecting to API: {e}")
         return None
 
 
@@ -88,13 +183,54 @@ def process_image_local(image: np.ndarray, detector):
     return annotated, detections, summary
 
 
-def process_image_api(image: np.ndarray, client):
-    """Process image with API client."""
-    result = client.predict(image, conf_threshold=st.session_state.conf_threshold)
-    annotated = draw_detections(image, result.detections)
-    summary = create_detection_summary(result.detections)
-    annotated = draw_summary_on_frame(annotated, summary)
-    return annotated, result.detections, summary
+def process_image_api(image: np.ndarray, api_config, conf_threshold=0.25):
+    """Process image with API using direct HTTP calls."""
+    try:
+        # Preprocess
+        img_data, orig_shape = preprocess_image_for_api(image)
+
+        # Prepare KServe V2 request
+        request_data = {
+            "inputs": [{
+                "name": "images",
+                "shape": list(img_data.shape),
+                "datatype": "FP32",
+                "data": img_data.flatten().tolist()
+            }]
+        }
+
+        # Send request
+        response = requests.post(
+            api_config['infer_url'],
+            json=request_data,
+            verify=False,
+            timeout=30
+        )
+
+        # Handle errors
+        if response.status_code != 200:
+            st.error(f"API Error {response.status_code}: {response.text}")
+            return None, [], {}
+
+        # Parse response
+        result = response.json()
+        output_data = result["outputs"][0]["data"]
+
+        # Postprocess
+        detections = postprocess_yolo_output(output_data, orig_shape, conf_threshold)
+
+        # Visualize
+        annotated = draw_detections(image, detections)
+        summary = create_detection_summary(detections)
+        annotated = draw_summary_on_frame(annotated, summary)
+
+        return annotated, detections, summary
+
+    except Exception as e:
+        st.error(f"Error during API inference: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+        return None, [], {}
 
 
 # Main header
@@ -172,7 +308,7 @@ with tab1:
                     st.session_state.detector = initialize_local_detector()
             detector = st.session_state.detector
         else:
-            if st.session_state.detector is None or not isinstance(st.session_state.detector, KServeClient):
+            if st.session_state.detector is None or not isinstance(st.session_state.detector, dict):
                 with st.spinner("Connecting to API..."):
                     st.session_state.detector = initialize_api_client(api_endpoint, api_model_name)
             detector = st.session_state.detector
@@ -243,19 +379,23 @@ with tab1:
                         for frame_num, frame in VideoProcessor.read_frames(video_path, skip_frames=skip_frames):
                             frame_count += 1
 
-                            result = detector.predict(frame, conf_threshold=st.session_state.conf_threshold)
-                            detections = result.detections
+                            # Process frame with API
+                            annotated, detections, summary = process_image_api(
+                                frame,
+                                detector,
+                                conf_threshold=st.session_state.conf_threshold
+                            )
+
+                            if annotated is None:
+                                st.error(f"Failed to process frame {frame_count}")
+                                break
+
                             total_persons += len(detections)
 
                             # Update progress
                             progress = frame_count / (video_info['frame_count'] // (skip_frames + 1))
                             progress_bar.progress(min(progress, 1.0))
                             status_text.text(f"Processing frame {frame_count}...")
-
-                            # Annotate frame
-                            annotated = draw_detections(frame, detections)
-                            summary = create_detection_summary(detections)
-                            annotated = draw_summary_on_frame(annotated, summary)
 
                             # Display every 10th frame
                             if frame_count % 10 == 0:
