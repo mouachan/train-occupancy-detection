@@ -23,12 +23,33 @@ Replace `username` with your actual Quay.io username.
 
 ### 2. Build and Push Image
 
+**Important for Mac ARM users**: OpenShift runs on x86_64 architecture. You must build for `linux/amd64` platform.
+
+#### Option A: Using Build Script (Recommended)
+
 ```bash
 # From project root directory
 cd /path/to/train-occupancy-detection
 
-# Build image with podman
-podman build -f Dockerfile.streamlit -t train-detection-streamlit:latest .
+# Build for x86_64 with default settings
+./build-image.sh
+
+# Or build with custom registry
+REGISTRY=quay.io/YOUR_USERNAME IMAGE_NAME=train-detection-streamlit ./build-image.sh
+```
+
+#### Option B: Manual Build for x86_64
+
+```bash
+# From project root directory
+cd /path/to/train-occupancy-detection
+
+# Build image for x86_64 platform
+podman build \
+    --platform linux/amd64 \
+    -f Dockerfile.streamlit \
+    -t train-detection-streamlit:latest \
+    .
 
 # Tag for Quay.io
 podman tag train-detection-streamlit:latest \
@@ -40,6 +61,8 @@ podman login quay.io
 # Push image
 podman push quay.io/YOUR_USERNAME/train-detection-streamlit:latest
 ```
+
+**Note**: The `--platform linux/amd64` flag is **critical** when building from Mac ARM (M1/M2/M3). Without it, the image will be ARM-based and won't run on OpenShift.
 
 ### 3. Make Image Public (Optional)
 
@@ -133,8 +156,12 @@ External access:
 To update the application with a new image:
 
 ```bash
-# Build and push new image
-podman build -f Dockerfile.streamlit -t quay.io/YOUR_USERNAME/train-detection-streamlit:v2 .
+# Build and push new image (from Mac ARM, use --platform flag)
+podman build \
+    --platform linux/amd64 \
+    -f Dockerfile.streamlit \
+    -t quay.io/YOUR_USERNAME/train-detection-streamlit:v2 \
+    .
 podman push quay.io/YOUR_USERNAME/train-detection-streamlit:v2
 
 # Update deployment
