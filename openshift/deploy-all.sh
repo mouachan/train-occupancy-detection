@@ -104,6 +104,11 @@ echo "========================================"
 echo ""
 
 echo "Deploying with Kustomize..."
+
+# Update namespace in kustomization.yaml
+echo "Setting namespace to: $NAMESPACE"
+sed -i.bak "s/^namespace: .*/namespace: $NAMESPACE/" kustomization.yaml
+
 oc apply -k .
 
 echo "✓ All resources created"
