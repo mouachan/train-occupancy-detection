@@ -105,10 +105,9 @@ spec:
 
           GITHUB_RAW_URL="https://raw.githubusercontent.com/mouachan/train-occupancy-detection/main/models/yolo11n.onnx"
 
-          if wget -q --spider "$GITHUB_RAW_URL" 2>/dev/null; then
-            wget -O /tmp/model.onnx "$GITHUB_RAW_URL"
-
-            if [ -f /tmp/model.onnx ]; then
+          # Download using curl (more commonly available than wget)
+          if curl -f -L -o /tmp/model.onnx "$GITHUB_RAW_URL" 2>/dev/null; then
+            if [ -f /tmp/model.onnx ] && [ -s /tmp/model.onnx ]; then
               echo "✓ Model downloaded successfully ($(du -h /tmp/model.onnx | cut -f1))"
 
               # Upload to MinIO
@@ -116,11 +115,12 @@ spec:
               mc cp /tmp/model.onnx myminio/models/model/yolo11n/1/model.onnx
               echo "✓ Model uploaded to models/model/yolo11n/1/model.onnx"
             else
-              echo "⚠️  Model download failed"
+              echo "⚠️  Model download failed (file empty or not created)"
             fi
           else
-            echo "⚠️  Model not found in GitHub repo"
-            echo "  Please upload manually or push models/yolo11n.onnx to GitHub"
+            echo "⚠️  Failed to download model from GitHub"
+            echo "  URL: $GITHUB_RAW_URL"
+            echo "  Please check that the file is pushed and the repo is public"
           fi
 
           echo ""
